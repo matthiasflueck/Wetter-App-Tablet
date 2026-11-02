@@ -35,8 +35,10 @@
     if(String(input)==='/api/timeline')return Promise.resolve(new Response(JSON.stringify(current?.mobile.daily||{message:'Bitte zuerst Messdaten herunterladen.'}),{status:current?200:503,headers:{'Content-Type':'application/json'}}));
     return nativeFetch(input,options);
   };
+  window.addEventListener('weather-timeline-error',event=>message('Die Daten sind gespeichert, aber die Diagramme konnten nicht geladen werden: '+event.detail));
+  document.getElementById('tabletReloadCharts').onclick=async()=>{try{current=await WeatherOffline.read();if(!current)throw Error('Noch keine gespeicherten Daten vorhanden.');history.replaceState(null,'','#timeline');window.dispatchEvent(new Event('weather-data-changed'));message(current.mobile.measurements.toLocaleString('de-CH')+' Messungen offline gespeichert. Diagramme werden neu geladen.')}catch(error){message(error.message)}};
   const scripts=['view.js','thunder.js','axis-scales.js','weather-days.js','timeline.js'];
-  if(!location.hash)history.replaceState(null,'','#timeline');
+  history.replaceState(null,'','#timeline');
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>message(status.textContent+' · Offline-App konnte noch nicht eingerichtet werden.'));
   document.getElementById('tabletInstall').onclick=()=>message('Im Chrome-Menü „App installieren“ oder „Zum Startbildschirm hinzufügen“ wählen. Vor dem Flugmodus die Installation und den Datendownload abschliessen.');

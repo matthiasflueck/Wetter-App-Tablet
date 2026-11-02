@@ -1,4 +1,4 @@
-const CACHE='wetter-tablet-c8d7e270b9cc90a5';const FILES=["./", "axis-scales.js", "bootstrap.js", "config.js", "icon.svg", "index.html", "manifest.webmanifest", "offline-store.js", "receiver.js", "thunder.js", "timeline.js", "view.js", "weather-days.js"];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
+const CACHE='wetter-tablet-78979cd0f362210c';const FILES=["./", "axis-scales.js", "bootstrap.js", "config.js", "icon.svg", "index.html", "manifest.webmanifest", "offline-store.js", "receiver.js", "thunder.js", "timeline.js", "view.js", "weather-days.js"];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES.map(path=>new Request(path,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('wetter-tablet-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;event.respondWith(caches.open(CACHE).then(async cache=>(await cache.match(event.request,{ignoreSearch:true}))||(event.request.mode==='navigate'?await cache.match('index.html'):fetch(event.request))))});

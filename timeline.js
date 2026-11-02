@@ -370,16 +370,16 @@
       requestAnimationFrame(()=>requestAnimationFrame(()=>{if(id===sequence)root.dataset.paintMs=(performance.now()-begin).toFixed(1)}));
       root.dataset.period=label;
       status.textContent=label+' · Alle Diagramme zeigen denselben Zeitraum. Zum Zoomen einen Bereich aufziehen, mit Doppelklick zurücksetzen.';
-    }catch(e){if(id===sequence)status.textContent='Zeitverlauf konnte nicht geladen werden: '+e.message}
+    }catch(e){if(id===sequence){status.textContent='Zeitverlauf konnte nicht geladen werden: '+e.message;window.dispatchEvent(new CustomEvent('weather-timeline-error',{detail:e.message}))}}
   }
   window.addEventListener('weather-thunder-changed',()=>{if(snapshot&&year!==undefined)load()});
   let initializing=false, initRevision=0;
   async function initialize(){
-    if(location.hash!=='#timeline'||initializing)return;
+    if((location.hash!=='#timeline'&&!root.hasAttribute('data-standalone'))||initializing)return;
     if(year!==undefined)return;
     initializing=true;const revision=++initRevision;
-    try{const loaded=await snapshotPromise;if(revision!==initRevision)return;snapshot=loaded;prepareDefaultAxes();const days=snapshot.metrics.temperature;firstYear=Number(days[0].day.slice(0,4));lastYear=Number(days.at(-1).day.slice(0,4));const latest=new Date(snapshot.last_utc*1000);year=Number(latest.toLocaleDateString('en-US',{year:'numeric',timeZone:'Europe/Zurich'}));month=Number(latest.toLocaleDateString('en-US',{month:'numeric',timeZone:'Europe/Zurich'}))-1;updateControls();await load()}
-    catch(e){status.textContent=e.message}finally{if(revision===initRevision)initializing=false}
+    try{const loaded=await snapshotPromise;if(revision!==initRevision)return;snapshot=loaded;prepareDefaultAxes();const days=snapshot.metrics.temperature;if(!Array.isArray(days)||!days.length)throw Error('Keine Temperatur-Tagesdaten im gespeicherten Stand.');firstYear=Number(days[0].day.slice(0,4));lastYear=Number(days[days.length-1].day.slice(0,4));const latest=new Date(snapshot.last_utc*1000);year=Number(latest.toLocaleDateString('en-US',{year:'numeric',timeZone:'Europe/Zurich'}));month=Number(latest.toLocaleDateString('en-US',{month:'numeric',timeZone:'Europe/Zurich'}))-1;updateControls();await load()}
+    catch(e){status.textContent=e.message;window.dispatchEvent(new CustomEvent('weather-timeline-error',{detail:e.message}))}finally{if(revision===initRevision)initializing=false}
   }
   window.addEventListener('hashchange',initialize);
   // Invalidate cached charts after a completed import or restore.
