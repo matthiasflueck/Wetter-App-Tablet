@@ -1,11 +1,29 @@
 /* Application chrome and presentation-only diagram scaling. */
 (() => {
+  try{const preferences=JSON.parse(localStorage.getItem('wetter.preferences')||'{}');document.body.classList.toggle('legend-right',preferences.legendPosition==='right')}catch(e){}
   const slider=document.getElementById('diagramZoom');
   const output=document.getElementById('diagramZoomValue');
   const stages=[...document.querySelectorAll('.diagram-stage')];
   let percent=100;
   try{const saved=Number(localStorage.getItem('wetter.diagramZoom'));if(Number.isFinite(saved)&&saved>=60&&saved<=140)percent=Math.round(saved/5)*5}catch(e){}
+  function alignLegends(){
+    for(const body of document.querySelectorAll('.chart-body')){
+      const legend=body.querySelector('.timeline-legend'),svg=body.querySelector('svg');
+      if(!legend||!svg||!body.getClientRects().length)continue;
+      if(!document.body.classList.contains('legend-right')){legend.style.removeProperty('--legend-offset');legend.style.removeProperty('--legend-shift');continue}
+      const box=body.getBoundingClientRect(),plot=svg.getBoundingClientRect();
+      const scale=box.width/body.offsetWidth;
+      if(!scale||!plot.width)continue;
+      // Both chart renderers start their grid at SVG y=30, including any storm strip above it.
+      const offset=(plot.top-box.top+plot.width/svg.viewBox.baseVal.width*30)/scale;
+      legend.style.setProperty('--legend-offset',Math.max(0,offset)+'px');
+      const gridRight=svg.id==='plot'?.975:.935;
+      const shift=svg.querySelector('[data-axis-title="right"]')?0:Math.max(0,plot.width*(1-gridRight)/scale-28);
+      legend.style.setProperty('--legend-shift',shift+'px');
+    }
+  }
   function resizeStages(){
+    alignLegends();
     for(const stage of stages){
       const host=stage.parentElement;
       if(!stage.getClientRects().length)continue;

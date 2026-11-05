@@ -26,20 +26,43 @@
   }
   try{current=await WeatherOffline.read()}catch(error){message(error.message)}
   if(current){
-    for(const key of WeatherReceiver.SETTINGS){localStorage.removeItem('wetter.'+key);if(current.mobile.settings[key]!==undefined)localStorage.setItem('wetter.'+key,JSON.stringify(current.mobile.settings[key]))}
-    document.body.classList.toggle('light',current.mobile.settings.preferences?.theme==='light');
+    try{WeatherTabletData.seedPreferences(localStorage,current.mobile.device_defaults||current.mobile.settings)}catch(error){console.warn('Tablet-Einstellungen konnten nicht vollständig gespeichert werden.')}
     message(current.mobile.measurements.toLocaleString('de-CH')+' Messungen offline gespeichert · Datenversion '+current.mobile.data_version);
   }else message('Noch keine Daten auf diesem Gerät. Mit Google verbinden und den veröffentlichten Stand herunterladen.');
-  // Timeline consumes the same daily format as the desktop; there is no Mac dependency.
+  const references=current?.mobile.references;
+  window.WeatherFog={settings:references?.fog?.settings||{},days:new Map((references?.fog?.daily||[]).map(row=>[row.day,row])),loaded:!!references,error:references?'':'Noch keine Hochnebeldaten übertragen. Bitte am Mac neu veröffentlichen.'};
+  const response=(data,status=200)=>Promise.resolve(new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}}));
   window.fetch=(input,options)=>{
-    if(String(input)==='/api/timeline')return Promise.resolve(new Response(JSON.stringify(current?.mobile.daily||{message:'Bitte zuerst Messdaten herunterladen.'}),{status:current?200:503,headers:{'Content-Type':'application/json'}}));
-    return nativeFetch(input,options);
+    const path=String(input);
+    if(!path.startsWith('/api/'))return nativeFetch(input,options);
+    if(options?.method&&options.method!=='GET')return response({message:'Änderungen an gemeinsamen Daten erfolgen am Mac.'},405);
+    const url=new URL(path,location.origin),snapshot=current?.mobile.daily;
+    if(!current)return response({message:'Bitte zuerst in der Datenverwaltung Messdaten herunterladen.'},503);
+    if(url.pathname==='/api/timeline')return response(snapshot);
+    if(url.pathname==='/api/normals'){
+      const periods=references?.normals||[],id=url.searchParams.get('id');
+      return id?response(periods.find(p=>p.id===id)||{message:'Normperiode nicht vorhanden'},periods.some(p=>p.id===id)?200:404):response({periods});
+    }
+    if(url.pathname==='/api/data'){
+      const years=[...new Set((snapshot.metrics.temperature||[]).map(row=>Number(row.day.slice(0,4))))].sort((a,b)=>a-b),requested=Number(url.searchParams.get('year'));
+      return response({years,year:years.includes(requested)?requested:years.at(-1),report:{version:current.mobile.data_version,valid_rows:current.mobile.measurements}});
+    }
+    if(url.pathname==='/api/series'){try{return response(WeatherTabletData.series(snapshot,url.searchParams))}catch(error){return response({message:error.message},400)}}
+    return response({message:'Diese Funktion ist auf dem Tablet noch nicht verfügbar.'},404);
   };
-  window.addEventListener('weather-timeline-error',event=>message('Die Daten sind gespeichert, aber die Diagramme konnten nicht geladen werden: '+event.detail));
-  document.getElementById('tabletReloadCharts').onclick=async()=>{try{current=await WeatherOffline.read();if(!current)throw Error('Noch keine gespeicherten Daten vorhanden.');history.replaceState(null,'','#timeline');window.dispatchEvent(new Event('weather-data-changed'));message(current.mobile.measurements.toLocaleString('de-CH')+' Messungen offline gespeichert. Diagramme werden neu geladen.')}catch(error){message(error.message)}};
-  const scripts=['view.js','thunder.js','axis-scales.js','weather-days.js','timeline.js'];
-  history.replaceState(null,'','#timeline');
+  window.addEventListener('weather-timeline-error',event=>message('Die Diagramme konnten nicht geladen werden: '+event.detail));
+  document.getElementById('tabletReloadCharts').onclick=()=>location.reload();
+  if(!current&&!location.hash)history.replaceState(null,'','#data');
+  const scripts=['shell.js','view.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js'];
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
+  const rangeControl=document.getElementById('tabletRangeZoom');if(rangeControl)rangeControl.onchange=()=>document.body.classList.toggle('touch-range-zoom',rangeControl.checked);
+  const resetControl=document.getElementById('tabletResetZoom');if(resetControl)resetControl.onclick=()=>window.dispatchEvent(new Event('weather-reset-zoom'));
+  const normals=document.getElementById('tabletNormals');
+  for(const period of references?.normals||[]){const card=document.createElement('section');card.className='norm-card norm-card-content';const title=document.createElement('h4');title.textContent=period.name;const details=document.createElement('p');details.textContent=period.station+' · '+period.start_year+'–'+period.end_year+' · '+period.day_count+' Tageswerte';card.append(title,details);normals.append(card)}
+  if(!normals.children.length)normals.textContent='Keine Normperioden übertragen. Bitte den aktuellen Stand am Mac veröffentlichen und erneut herunterladen.';
+  const fog=references?.fog?.settings;
+  document.getElementById('tabletFogSettings').textContent=fog?'Station '+fog.station.toUpperCase()+' · eigene Solarstrahlung ≤ '+fog.solar_max+' W/m² · Differenz ≥ '+fog.difference_min+' W/m² · Feuchte ≥ '+fog.humidity_min+' % · '+fog.time_from+'–'+fog.time_to+' (Europe/Zurich)':'Noch keine Hochnebelparameter übertragen.';
+  if('serviceWorker' in navigator){let updating=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(updating)location.reload();updating=true})}
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>message(status.textContent+' · Offline-App konnte noch nicht eingerichtet werden.'));
   document.getElementById('tabletInstall').onclick=()=>message('Im Chrome-Menü „App installieren“ oder „Zum Startbildschirm hinzufügen“ wählen. Vor dem Flugmodus die Installation und den Datendownload abschliessen.');
   if(!window.WEATHER_WEB_CLIENT_ID){connect.disabled=true;document.getElementById('tabletSetup').hidden=false;return}

@@ -1,6 +1,6 @@
 /* Shared by tablet shells: validate downloads before one atomic storage activation. */
 (function(root){
-  const SETTINGS=['preferences','thunder','diagramZoom','timelineValues','yAxes','chartOrder'];
+  const SETTINGS=['preferences','thunder','diagramZoom','timelineValues','yAxes','chartOrder','timelineFog','chartHeights','temperatureNormals','annualNorm','comparisonNorm'];
   const METRICS=['temperature','rain','solar','uv','gust','wind','humidity'];
   function ensure(condition,message){if(!condition)throw Error(message)}
   function validateMobile(data,publication){
@@ -8,11 +8,15 @@
     ensure(data.bundle_id===publication.bundle_id&&data.data_version===publication.data_version,'Datenversion stimmt nicht überein');
     ensure(Number.isSafeInteger(data.measurements)&&data.measurements>0&&data.measurements===publication.measurements,'Messwertanzahl stimmt nicht überein');
     ensure(data.daily?.version===data.data_version&&Number.isFinite(data.daily.last_utc),'Tagesdaten ungültig');
-    for(const metric of METRICS){
+    ensure(data.daily.metrics&&typeof data.daily.metrics==='object','Messgrössen fehlen');
+    for(const metric of Object.keys(data.daily.metrics))ensure([...METRICS,'pressure','pressure_sea','dewpoint'].includes(metric),'Unbekannte Messgrösse');
+    for(const metric of new Set([...METRICS,...Object.keys(data.daily.metrics)])){
       const rows=data.daily.metrics?.[metric];ensure(Array.isArray(rows),'Messgrösse fehlt: '+metric);
       let last='';
       for(const row of rows){
         ensure(/^\d{4}-\d{2}-\d{2}$/.test(row.day)&&row.day>last,'Tagesreihenfolge ungültig');last=row.day;
+        for(const key of ['samples','valid_samples','suspicious_values'])if(row[key]!==undefined)ensure(Number.isSafeInteger(row[key])&&row[key]>=0,'Ungültige Messwertanzahl');
+        if(row.samples!==undefined&&row.valid_samples!==undefined)ensure(row.valid_samples<=row.samples,'Ungültige Messwertanzahl');
         for(const key of ['minimum','maximum','mean'])ensure(row[key]===null||Number.isFinite(row[key]),'Ungültiger Tageswert');
       }
     }
@@ -25,6 +29,18 @@
     if(settings.yAxes!==undefined)for(const [key,range] of Object.entries(settings.yAxes))ensure(['temperature','rain','solar','wind','humidity','uv'].includes(key)&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.min<range.max,'Ungültige Achsengrenzen');
     if(settings.chartOrder!==undefined)ensure(Array.isArray(settings.chartOrder)&&settings.chartOrder.length===5&&new Set(settings.chartOrder).size===5&&settings.chartOrder.every(id=>['temperature','rain','solar','wind','humidity'].includes(id)),'Ungültige Diagrammreihenfolge');
     if(settings.thunder!==undefined)ensure(Number.isInteger(settings.thunder.count)&&settings.thunder.count>=0&&Number.isFinite(settings.thunder.distance)&&settings.thunder.distance>=0,'Ungültige Gewitterschwellen');
+    if(settings.timelineFog!==undefined)ensure(typeof settings.timelineFog==='boolean','Ungültige Hochnebelanzeige');
+    if(settings.chartHeights!==undefined)for(const [key,value] of Object.entries(settings.chartHeights))ensure(['temperature','rain','solar','wind','humidity'].includes(key)&&Number.isFinite(value)&&value>=240&&value<=1000,'Ungültige Diagrammhöhe');
+    if(settings.temperatureNormals!==undefined)ensure(Array.isArray(settings.temperatureNormals)&&settings.temperatureNormals.length<=100&&settings.temperatureNormals.every(id=>typeof id==='string'&&id.length<=120),'Ungültige Normauswahl');
+    for(const key of ['annualNorm','comparisonNorm'])if(settings[key]!==undefined)ensure(typeof settings[key]==='string'&&settings[key].length<=120,'Ungültige Normauswahl');
+    if(data.device_defaults!==undefined)validateMobile({...data,settings:data.device_defaults,device_defaults:undefined,references:undefined},publication);
+    if(data.references!=null){
+      const refs=data.references;ensure(refs.schema_version===1&&refs.fog_algorithm_version===2&&refs.time_basis==='Europe/Zurich','Unbekanntes Referenzformat');
+      ensure(Array.isArray(refs.normals)&&refs.normals.length<=1000,'Ungültige Normperioden');
+      const ids=new Set();for(const period of refs.normals){ensure(typeof period.id==='string'&&!ids.has(period.id)&&typeof period.name==='string'&&typeof period.station==='string'&&Array.isArray(period.daily)&&period.daily.length<=366,'Ungültige Normperiode');ids.add(period.id);const days=new Set();for(const row of period.daily){ensure(/^\d{2}-\d{2}$/.test(row.day)&&!days.has(row.day),'Ungültiger Normtag');days.add(row.day);for(const [key,value] of Object.entries(row))if(key!=='day')ensure(value===null||Number.isFinite(value),'Ungültiger Normwert')}}
+      ensure(refs.fog?.version===data.data_version&&Array.isArray(refs.fog.daily)&&refs.fog.settings&&typeof refs.fog.settings.start_date==='string','Ungültige Hochnebeldaten');
+      let previous='';for(const row of refs.fog.daily){ensure(/^\d{4}-\d{2}-\d{2}$/.test(row.day)&&row.day>previous&&typeof row.fog==='boolean'&&typeof row.evaluated==='boolean','Ungültiger Hochnebeltag');previous=row.day}
+    }
     ensure(Array.isArray(data.daily.thunder),'Gewitterdaten fehlen');
     return data;
   }

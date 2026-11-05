@@ -1,1 +1,1 @@
-{"name": "Wetter-App", "short_name": "Wetter-App", "start_url": "./#timeline", "scope": "./", "display": "standalone", "background_color": "#101820", "theme_color": "#101820", "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}
+{"name": "Wetter-App", "short_name": "Wetter-App", "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#101820", "theme_color": "#101820", "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}
