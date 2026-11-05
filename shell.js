@@ -21,7 +21,7 @@ let requestId=0;
 async function load(year=''){
  try{
   const response=await fetch('/api/data?year='+encodeURIComponent(year));
-  if(!response.ok)throw Error('Bitte zuerst Stationsdaten importieren.');
+  if(!response.ok)throw Error('Bitte zuerst in der Datenverwaltung Messdaten herunterladen.');
   const d=await response.json();
   if(!$('year').options.length)for(const y of d.years)$('year').add(new Option(y,y));
   $('year').value=d.year;
