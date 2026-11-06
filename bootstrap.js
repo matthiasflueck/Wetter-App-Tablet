@@ -38,6 +38,7 @@
     if(!path.startsWith('/api/'))return nativeFetch(input,options);
     if(options?.method&&options.method!=='GET')return response({message:'Änderungen an gemeinsamen Daten erfolgen am Mac.'},405);
     const url=new URL(path,location.origin),snapshot=current?.mobile.daily;
+    if(url.pathname==='/api/live'&&window.WeatherNasArchive?.connected())return window.WeatherNasArchive.request('/live').then(data=>response(data)).catch(error=>response({message:error.message},503));
     if(url.pathname==='/api/live')return WeatherTabletLive.read(nativeFetch,liveConnection,options?.signal).then(data=>response(data)).catch(error=>response({message:error.message},503));
     if(!current)return response({message:'Bitte zuerst unter Daten & Synchronisation Messdaten herunterladen.'},503);
     if(['/api/measurements/fields','/api/measurements','/api/measurements.xlsx'].includes(url.pathname)){
@@ -59,7 +60,7 @@
   window.addEventListener('weather-timeline-error',event=>message('Die Diagramme konnten nicht geladen werden: '+event.detail));
   document.getElementById('tabletReloadCharts').onclick=()=>location.reload();
   if(!current&&!location.hash)history.replaceState(null,'','#data');
-  const scripts=['analysis.js','shell.js','view.js','fullscreen.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js','measurements.js'];
+  const scripts=['live-archive.js','analysis.js','shell.js','view.js','fullscreen.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js','measurements.js'];
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
   const liveForm=document.getElementById('tabletLiveForm'),liveMessage=document.getElementById('tabletLiveMessage');
   document.getElementById('tabletLiveUrl').value=window.WEATHER_LIVE_URL||'';
