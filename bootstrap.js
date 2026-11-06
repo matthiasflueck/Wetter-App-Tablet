@@ -1,7 +1,7 @@
 (async()=>{
   const status=document.getElementById('tabletStatus'),connect=document.getElementById('tabletConnect');
   const nativeFetch=window.fetch.bind(window);
-  let current=null,token=null,expires=0,busy=false;
+  let current=null,token=null,expires=0,busy=false,liveConnection=null;
   const message=text=>status.textContent=text;
   const authorizedFetch=async url=>{
     if(!token||Date.now()>=expires)throw Error('Bitte erneut mit Google anmelden.');
@@ -29,6 +29,7 @@
     try{WeatherTabletData.seedPreferences(localStorage,current.mobile.device_defaults||current.mobile.settings)}catch(error){console.warn('Tablet-Einstellungen konnten nicht vollständig gespeichert werden.')}
     message(current.mobile.measurements.toLocaleString('de-CH')+' Messungen offline gespeichert · Datenversion '+current.mobile.data_version);
   }else message('Noch keine Daten auf diesem Gerät. Mit Google verbinden und den veröffentlichten Stand herunterladen.');
+  try{liveConnection=await WeatherOffline.readConnection()}catch(error){}
   const references=current?.mobile.references;
   window.WeatherFog={settings:references?.fog?.settings||{},days:new Map((references?.fog?.daily||[]).map(row=>[row.day,row])),loaded:!!references,error:references?'':'Noch keine Hochnebeldaten übertragen. Bitte am Mac neu veröffentlichen.'};
   const response=(data,status=200)=>Promise.resolve(new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}}));
@@ -37,6 +38,7 @@
     if(!path.startsWith('/api/'))return nativeFetch(input,options);
     if(options?.method&&options.method!=='GET')return response({message:'Änderungen an gemeinsamen Daten erfolgen am Mac.'},405);
     const url=new URL(path,location.origin),snapshot=current?.mobile.daily;
+    if(url.pathname==='/api/live')return WeatherTabletLive.read(nativeFetch,liveConnection,options?.signal).then(data=>response(data)).catch(error=>response({message:error.message},503));
     if(!current)return response({message:'Bitte zuerst in der Datenverwaltung Messdaten herunterladen.'},503);
     if(url.pathname==='/api/timeline')return response(snapshot);
     if(url.pathname==='/api/normals'){
@@ -53,8 +55,13 @@
   window.addEventListener('weather-timeline-error',event=>message('Die Diagramme konnten nicht geladen werden: '+event.detail));
   document.getElementById('tabletReloadCharts').onclick=()=>location.reload();
   if(!current&&!location.hash)history.replaceState(null,'','#data');
-  const scripts=['shell.js','view.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js'];
+  const scripts=['shell.js','view.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js'];
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
+  const liveForm=document.getElementById('tabletLiveForm'),liveMessage=document.getElementById('tabletLiveMessage');
+  document.getElementById('tabletLiveUrl').value=window.WEATHER_LIVE_URL||'';
+  if(liveConnection){document.getElementById('tabletLiveUrl').value=liveConnection.url;document.getElementById('tabletLiveRemember').checked=true;liveMessage.textContent='Live-Verbindung auf diesem Gerät gespeichert. Für eine Änderung den Zugangsschlüssel erneut eingeben.'}
+  liveForm.onsubmit=async event=>{event.preventDefault();const button=liveForm.querySelector('[type=submit]');button.disabled=true;liveMessage.textContent='Live-Verbindung wird geprüft …';try{const connection={url:WeatherTabletLive.validateEndpoint(document.getElementById('tabletLiveUrl').value.trim()),token:document.getElementById('tabletLiveToken').value.trim()};await WeatherTabletLive.read(nativeFetch,connection);await WeatherOffline.saveConnection(document.getElementById('tabletLiveRemember').checked?connection:null);liveConnection=connection;document.getElementById('tabletLiveToken').value='';liveMessage.textContent='Verbunden. Aktuelle Messwerte können jetzt angezeigt werden.';window.dispatchEvent(new Event('weather-live-connection-changed'))}catch(error){liveMessage.textContent=error.message}finally{button.disabled=false}};
+  document.getElementById('tabletLiveForget').onclick=async()=>{try{await WeatherOffline.saveConnection(null);liveConnection=null;document.getElementById('tabletLiveUrl').value='';document.getElementById('tabletLiveToken').value='';liveMessage.textContent='Live-Verbindung entfernt. Historische Daten bleiben erhalten.';window.dispatchEvent(new Event('weather-live-connection-changed'))}catch(error){liveMessage.textContent=error.message}};
   const rangeControl=document.getElementById('tabletRangeZoom');if(rangeControl)rangeControl.onchange=()=>document.body.classList.toggle('touch-range-zoom',rangeControl.checked);
   const resetControl=document.getElementById('tabletResetZoom');if(resetControl)resetControl.onclick=()=>window.dispatchEvent(new Event('weather-reset-zoom'));
   const normals=document.getElementById('tabletNormals');
