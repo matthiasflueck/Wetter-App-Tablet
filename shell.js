@@ -1,6 +1,6 @@
 
 const $=id=>document.getElementById(id);const fmt=n=>n.toLocaleString('de-CH',{maximumFractionDigits:1});
-const workspaces=['live','timeline','annual','comparison','analysis','data','settings'];
+const workspaces=['live','timeline','annual','comparison','analysis','measurements','data','settings'];
 let preferences={theme:'dark',metric:'temperature',resolution:'day',legendPosition:'top',startWorkspace:'timeline',headerSubtitle:'Deine Wetterstation. Deine Analyse.',diagramBackgroundEnabled:true,diagramBackgroundColor:''};
 try{const saved=JSON.parse(localStorage.getItem('wetter.preferences')||'{}');if(typeof saved.diagramBackgroundEnabled==='boolean')preferences.diagramBackgroundEnabled=saved.diagramBackgroundEnabled;if(/^#[0-9a-f]{6}$/i.test(saved.diagramBackgroundColor))preferences.diagramBackgroundColor=saved.diagramBackgroundColor;if(workspaces.includes(saved.startWorkspace))preferences.startWorkspace=saved.startWorkspace;if(typeof saved.headerSubtitle==='string'&&saved.headerSubtitle.length<=120)preferences.headerSubtitle=saved.headerSubtitle;if(['top','right'].includes(saved.legendPosition))preferences.legendPosition=saved.legendPosition;if(saved.theme==='light')preferences.theme='light';if([...$('metric').options].some(o=>o.value===saved.metric))preferences.metric=saved.metric;if(['day','month','year'].includes(saved.resolution))preferences.resolution=saved.resolution}catch(e){}
 function savePreferences(){try{localStorage.setItem('wetter.preferences',JSON.stringify(preferences));return true}catch(e){return false}}

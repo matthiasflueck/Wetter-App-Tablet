@@ -40,6 +40,10 @@
     const url=new URL(path,location.origin),snapshot=current?.mobile.daily;
     if(url.pathname==='/api/live')return WeatherTabletLive.read(nativeFetch,liveConnection,options?.signal).then(data=>response(data)).catch(error=>response({message:error.message},503));
     if(!current)return response({message:'Bitte zuerst in der Datenverwaltung Messdaten herunterladen.'},503);
+    if(['/api/measurements/fields','/api/measurements','/api/measurements.xlsx'].includes(url.pathname)){
+      const action=url.pathname.endsWith('/fields')?'metadata':url.pathname.endsWith('.xlsx')?'xlsx':'preview';
+      return WeatherRawMeasurements.request(action,current,Object.fromEntries(url.searchParams),options?.signal).then(result=>action==='xlsx'?new Response(result,{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}}):response(result)).catch(error=>{if(error.name==='AbortError')throw error;return response({message:error.message},400)});
+    }
     if(url.pathname==='/api/timeline')return response(snapshot);
     if(url.pathname==='/api/normals'){
       const periods=references?.normals||[],id=url.searchParams.get('id');
@@ -55,7 +59,7 @@
   window.addEventListener('weather-timeline-error',event=>message('Die Diagramme konnten nicht geladen werden: '+event.detail));
   document.getElementById('tabletReloadCharts').onclick=()=>location.reload();
   if(!current&&!location.hash)history.replaceState(null,'','#data');
-  const scripts=['shell.js','view.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js'];
+  const scripts=['shell.js','view.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js','measurements.js'];
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
   const liveForm=document.getElementById('tabletLiveForm'),liveMessage=document.getElementById('tabletLiveMessage');
   document.getElementById('tabletLiveUrl').value=window.WEATHER_LIVE_URL||'';
