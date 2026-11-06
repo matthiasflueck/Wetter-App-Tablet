@@ -26,6 +26,8 @@
     if(settings.diagramZoom!==undefined)ensure(Number.isFinite(settings.diagramZoom)&&settings.diagramZoom>=60&&settings.diagramZoom<=140,'Ungültiger Zoom');
     if(settings.timelineValues!==undefined)ensure(typeof settings.timelineValues==='boolean','Ungültige Werteanzeige');
     if(settings.preferences!==undefined)ensure(settings.preferences&&['dark','light'].includes(settings.preferences.theme),'Ungültige Darstellung');
+    if(settings.preferences?.diagramBackgroundEnabled!==undefined)ensure(typeof settings.preferences.diagramBackgroundEnabled==='boolean','Ungültiger Diagrammhintergrund');
+    if(settings.preferences?.diagramBackgroundColor!==undefined)ensure(settings.preferences.diagramBackgroundColor===''||/^#[0-9a-f]{6}$/i.test(settings.preferences.diagramBackgroundColor),'Ungültige Hintergrundfarbe');
     if(settings.yAxes!==undefined)for(const [key,range] of Object.entries(settings.yAxes))ensure(['temperature','rain','solar','wind','humidity','uv'].includes(key)&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.min<range.max,'Ungültige Achsengrenzen');
     if(settings.chartOrder!==undefined)ensure(Array.isArray(settings.chartOrder)&&settings.chartOrder.length===5&&new Set(settings.chartOrder).size===5&&settings.chartOrder.every(id=>['temperature','rain','solar','wind','humidity'].includes(id)),'Ungültige Diagrammreihenfolge');
     if(settings.thunder!==undefined)ensure(Number.isInteger(settings.thunder.count)&&settings.thunder.count>=0&&Number.isFinite(settings.thunder.distance)&&settings.thunder.distance>=0,'Ungültige Gewitterschwellen');
