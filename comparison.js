@@ -17,6 +17,7 @@
  function color(v,type){const neutral=[249,250,249],cold=[166,209,237],warm=[242,169,164];if(type==='rain')return blend([241,248,253],[89,169,219],v/300);if(type==='solar')return blend([255,247,216],[255,184,82],v/250);if(type==='deviation')return v<0?blend(neutral,cold,-v/6):blend(neutral,warm,v/6);return v<=12?blend(neutral,cold,(12-v)/24):blend(neutral,warm,(v-12)/24)}
  function matrix(card,type){
   const plot=card.plot;plot.replaceChildren();card.tip.hidden=true;const W=640,H=510,CW=Math.min(56,450/data.length),RH=32,X=(W-CW*data.length)/2+25,Y=65;plot.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg(plot,'rect',{x:X,y:Y,width:CW*data.length,height:RH*12,class:'plot-background','data-plot-background':''});
   data.forEach((item,i)=>svg(plot,'text',{x:X+(i+.5)*CW,y:Y-14,transform:'rotate(-45 '+(X+(i+.5)*CW)+' '+(Y-14)+')','text-anchor':'start',fill:'var(--muted)','font-size':12},item.year));
   months.forEach((month,m)=>svg(plot,'text',{x:X-10,y:Y+(m+.5)*RH+4,'text-anchor':'end',fill:'var(--muted)','font-size':12},month));
   for(const [i,item] of data.entries())for(const [m,month] of item.monthly.entries()){

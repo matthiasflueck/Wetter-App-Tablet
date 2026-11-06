@@ -19,6 +19,7 @@
  function chart(card,data,series,{leftUnit='',rightUnit='',leftRange,rightRange,bands=false}={}){
   const plot=card.plot;plot.replaceChildren();card.tip.hidden=true;const W=card.wide?1000:640,H=330,L=60,R=W-65,T=28,B=270,step=(R-L)/data.months.length,x=i=>L+(i+.5)*step,labels=data.labels||months;
   const range=leftRange||extent(series.find(s=>!s.right).key),other=rightRange||{min:0,max:1},y=(v,right=false)=>B-(v-(right?other:range).min)/((right?other:range).max-(right?other:range).min)*(B-T);
+  svg(plot,'rect',{x:L,y:T,width:R-L,height:B-T,class:'plot-background','data-plot-background':''});
   for(let j=0;j<=4;j++){const v=range.min+(range.max-range.min)*j/4;svg(plot,'line',{x1:L,x2:R,y1:y(v),y2:y(v),stroke:'var(--line)',opacity:.7});svg(plot,'text',{x:L-9,y:y(v)+4,'text-anchor':'end',fill:'var(--muted)','font-size':12},fmt(v));if(rightUnit)svg(plot,'text',{x:R+9,y:B-(B-T)*j/4+4,fill:'var(--muted)','font-size':12},fmt(other.min+(other.max-other.min)*j/4))}
   svg(plot,'text',{x:15,y:(B+T)/2,transform:'rotate(-90 15 '+(B+T)/2+')','text-anchor':'middle',fill:'var(--muted)','font-size':12},leftUnit);if(rightUnit)svg(plot,'text',{x:W-12,y:(B+T)/2,transform:'rotate(-90 '+(W-12)+' '+(B+T)/2+')','text-anchor':'middle',fill:'var(--muted)','font-size':12},rightUnit);
   data.months.forEach((m,i)=>{svg(plot,'line',{x1:x(i),x2:x(i),y1:T,y2:B,stroke:'var(--line)',opacity:.4});svg(plot,'text',{x:x(i),y:B+20,transform:'rotate(-40 '+x(i)+' '+(B+20)+')','text-anchor':'end',fill:'var(--muted)','font-size':12},labels[i])});
@@ -31,6 +32,7 @@
  }
  function heatmap(card,data,type){
   const plot=card.plot;plot.replaceChildren();card.tip.hidden=true;const X=55,Y=12,CW=18.2,RH=22;plot.setAttribute('viewBox','0 0 640 330');
+  svg(plot,'rect',{x:X,y:Y,width:31*CW,height:12*RH,class:'plot-background','data-plot-background':''});
   const blend=(a,b,t)=>'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';
   function color(v){
    if(type==='solar')return blend([255,247,216],[255,184,82],Math.min(1,Math.max(0,v/300)));

@@ -64,6 +64,7 @@ function draw(data){
  const bottom=Math.min(...rows.map(r=>r.minimum)),top=Math.max(...rows.map(r=>r.maximum));
  const pad=Math.max((top-bottom)*.1,1),low=bottom-pad,high=top+pad;
  const x=r=>65+(Date.parse(r.day)-start)/(end-start)*910,y=v=>295-(v-low)/(high-low)*265;
+ el('rect',{x:65,y:30,width:910,height:265,class:'plot-background','data-plot-background':''});
  for(let i=0;i<=5;i++){const t=low+(high-low)*i/5;el('line',{x1:65,x2:975,y1:y(t),y2:y(t),stroke:'var(--line)'});el('text',{x:55,y:y(t)+5,fill:'var(--muted)','font-size':13,'text-anchor':'end'},fmt(t))}
  for(let i=0;i<=5;i++){const stamp=start+(end-start-86400000)*i/5;el('text',{x:65+i*910/5,y:330,fill:'var(--muted)','font-size':13,'text-anchor':i===5?'end':'start'},new Date(stamp).toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'UTC'}))}
  el('text',{x:14,y:160,transform:'rotate(-90 14 160)',fill:'var(--muted)','font-size':13,'text-anchor':'middle'},data.unit==='°C'?'° Celsius':data.unit||data.label);

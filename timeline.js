@@ -323,6 +323,7 @@
 
     const {min:low,max:high}=axisRange(panel.id);
     const x=i=>65+(i+.5)/count*870,y=v=>bottom-(v-low)/(high-low)*gridHeight;chart.scaleY=y;
+    element(svg,'rect',{x:65,y:30,width:870,height:gridHeight,class:'plot-background','data-plot-background':''});
     if(panel.id==='temperature'&&showFog()){for(let i=0;i<count;i++){const day=iso(new Date(+start+i*DAY));if(window.WeatherFog.days.get(day)?.fog)element(svg,'rect',{x:65+i/count*870,y:30,width:870/count,height:gridHeight,class:'fog-shade','data-fog-day':day})}}
     for(let i=0;i<=4;i++){const value=low+(high-low)*i/4;element(svg,'line',{x1:65,x2:935,y1:y(value),y2:y(value),stroke:'var(--line)'});element(svg,'text',{x:55,y:y(value)+4,'text-anchor':'end',fill:'var(--muted)','font-size':12},format(value))}
     element(svg,'text',{x:14,y:middle,transform:`rotate(-90 14 ${middle})`,fill:'var(--muted)','font-size':13,'text-anchor':'middle','data-axis-title':'left'},panel.id==='temperature'?'° Celsius':panel.unit);
