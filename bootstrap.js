@@ -26,7 +26,7 @@
   }
   try{current=await WeatherOffline.read()}catch(error){message(error.message)}
   if(current){
-    try{WeatherTabletData.seedPreferences(localStorage,current.mobile.device_defaults||current.mobile.settings)}catch(error){console.warn('Tablet-Einstellungen konnten nicht vollständig gespeichert werden.')}
+    try{WeatherTabletData.seedPreferences(localStorage,current.mobile.device_defaults||current.mobile.settings,current.mobile.shared_settings||current.mobile.settings)}catch(error){console.warn('Tablet-Einstellungen konnten nicht vollständig gespeichert werden.')}
     message(current.mobile.measurements.toLocaleString('de-CH')+' Messungen offline gespeichert · Datenversion '+current.mobile.data_version);
   }else message('Noch keine Daten auf diesem Gerät. Mit Google verbinden und den veröffentlichten Stand herunterladen.');
   try{liveConnection=await WeatherOffline.readConnection()}catch(error){}

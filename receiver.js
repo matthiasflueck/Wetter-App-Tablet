@@ -1,6 +1,6 @@
 /* Shared by tablet shells: validate downloads before one atomic storage activation. */
 (function(root){
-  const SETTINGS=['preferences','thunder','diagramZoom','timelineValues','yAxes','chartOrder','timelineFog','chartHeights','temperatureNormals','annualNorm','comparisonNorm'];
+  const SETTINGS=['preferences','thunder','diagramZoom','diagramZooms','timelineValues','yAxes','chartOrder','timelineFog','chartHeights','temperatureNormals','annualNorm','comparisonNorm'];
   const METRICS=['temperature','rain','solar','uv','gust','wind','humidity'];
   function ensure(condition,message){if(!condition)throw Error(message)}
   function validateMobile(data,publication){
@@ -23,9 +23,11 @@
     ensure(data.settings&&typeof data.settings==='object'&&!Array.isArray(data.settings),'Einstellungen fehlen');
     ensure(Object.keys(data.settings).every(key=>SETTINGS.includes(key)),'Unbekannte Einstellungen');
     const settings=data.settings;
+    if(settings.diagramZooms!==undefined){ensure(settings.diagramZooms&&typeof settings.diagramZooms==='object'&&!Array.isArray(settings.diagramZooms),'Ungültiger Ansichtszoom');for(const [key,value] of Object.entries(settings.diagramZooms))ensure(['live','timeline','annual','comparison','analysis','data','settings'].includes(key)&&Number.isFinite(value)&&value>=60&&value<=140&&value%5===0,'Ungültiger Ansichtszoom')}
     if(settings.diagramZoom!==undefined)ensure(Number.isFinite(settings.diagramZoom)&&settings.diagramZoom>=60&&settings.diagramZoom<=140,'Ungültiger Zoom');
     if(settings.timelineValues!==undefined)ensure(typeof settings.timelineValues==='boolean','Ungültige Werteanzeige');
-    if(settings.preferences!==undefined)ensure(settings.preferences&&['dark','light'].includes(settings.preferences.theme),'Ungültige Darstellung');
+    if(settings.preferences!==undefined)ensure(settings.preferences&&['dark','light'].includes(settings.preferences.theme??'dark'),'Ungültige Darstellung');
+    if(settings.preferences?.headerSubtitle!==undefined)ensure(typeof settings.preferences.headerSubtitle==='string'&&settings.preferences.headerSubtitle.length<=120,'Ungültiger App-Untertitel');
     if(settings.preferences?.diagramBackgroundEnabled!==undefined)ensure(typeof settings.preferences.diagramBackgroundEnabled==='boolean','Ungültiger Diagrammhintergrund');
     if(settings.preferences?.diagramBackgroundColor!==undefined)ensure(settings.preferences.diagramBackgroundColor===''||/^#[0-9a-f]{6}$/i.test(settings.preferences.diagramBackgroundColor),'Ungültige Hintergrundfarbe');
     if(settings.yAxes!==undefined)for(const [key,range] of Object.entries(settings.yAxes))ensure(['temperature','rain','solar','wind','humidity','uv'].includes(key)&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.min<range.max,'Ungültige Achsengrenzen');
@@ -35,7 +37,8 @@
     if(settings.chartHeights!==undefined)for(const [key,value] of Object.entries(settings.chartHeights))ensure(['temperature','rain','solar','wind','humidity'].includes(key)&&Number.isFinite(value)&&value>=240&&value<=1000,'Ungültige Diagrammhöhe');
     if(settings.temperatureNormals!==undefined)ensure(Array.isArray(settings.temperatureNormals)&&settings.temperatureNormals.length<=100&&settings.temperatureNormals.every(id=>typeof id==='string'&&id.length<=120),'Ungültige Normauswahl');
     for(const key of ['annualNorm','comparisonNorm'])if(settings[key]!==undefined)ensure(typeof settings[key]==='string'&&settings[key].length<=120,'Ungültige Normauswahl');
-    if(data.device_defaults!==undefined)validateMobile({...data,settings:data.device_defaults,device_defaults:undefined,references:undefined},publication);
+    if(data.shared_settings!==undefined)validateMobile({...data,settings:data.shared_settings,shared_settings:undefined,device_defaults:undefined,references:undefined},publication);
+    if(data.device_defaults!==undefined)validateMobile({...data,settings:data.device_defaults,device_defaults:undefined,shared_settings:undefined,references:undefined},publication);
     if(data.references!=null){
       const refs=data.references;ensure(refs.schema_version===1&&refs.fog_algorithm_version===2&&refs.time_basis==='Europe/Zurich','Unbekanntes Referenzformat');
       ensure(Array.isArray(refs.normals)&&refs.normals.length<=1000,'Ungültige Normperioden');

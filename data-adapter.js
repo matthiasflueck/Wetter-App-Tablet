@@ -23,14 +23,15 @@
   const valid=daily.filter(row=>row.valid_samples),min=valid.length?Math.min(...valid.map(r=>r.minimum)):null,max=valid.length?Math.max(...valid.map(r=>r.maximum)):null;
   return {metric,resolution,label:metrics[metric][0],unit:metrics[metric][1],start,end,available,daily,periods,summary:{days_requested:daily.length,days_with_values:valid.length,day_presence_percent:Math.round(1000*valid.length/daily.length)/10,suspicious_values:suspicious,samples:daily.reduce((s,r)=>s+r.samples,0),valid_samples:daily.reduce((s,r)=>s+r.valid_samples,0),missing_days:daily.filter(r=>!r.samples).length,days_without_values:daily.length-valid.length,minimum:min,maximum:max}};
  }
- function seedPreferences(storage,settings){
+ function seedPreferences(storage,settings,shared={}){
   // Device preferences are seeded once; shared brand text and thresholds follow the publication.
-  for(const key of ['preferences','diagramZoom','timelineValues','timelineFog','yAxes','chartOrder','chartHeights','temperatureNormals','annualNorm','comparisonNorm','thunder']){
+  for(const key of ['preferences','diagramZoom','diagramZooms','timelineValues','timelineFog','yAxes','chartOrder','chartHeights','temperatureNormals','annualNorm','comparisonNorm','thunder']){
    const name='wetter.'+key;if(storage.getItem(name)!==null||settings[key]===undefined)continue;
    storage.setItem(name,['annualNorm','comparisonNorm'].includes(key)?settings[key]:JSON.stringify(settings[key]));
   }
   if(settings.thunder!==undefined)storage.setItem('wetter.thunder',JSON.stringify(settings.thunder));
-  if(typeof settings.preferences?.headerSubtitle==='string'){let preferences={};try{preferences=JSON.parse(storage.getItem('wetter.preferences')||'{}')}catch(e){}preferences.headerSubtitle=settings.preferences.headerSubtitle;storage.setItem('wetter.preferences',JSON.stringify(preferences))}
+  const subtitle=shared.preferences?.headerSubtitle??settings.preferences?.headerSubtitle;
+  if(typeof subtitle==='string'){let preferences={};try{preferences=JSON.parse(storage.getItem('wetter.preferences')||'{}')}catch(e){}preferences.headerSubtitle=subtitle;storage.setItem('wetter.preferences',JSON.stringify(preferences))}
  }
  const api={series,seedPreferences};if(typeof module!=='undefined')module.exports=api;else root.WeatherTabletData=api;
 })(typeof window==='undefined'?this:window);
