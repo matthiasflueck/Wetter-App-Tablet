@@ -4,7 +4,7 @@
   const slider=document.getElementById('diagramZoom');
   const output=document.getElementById('diagramZoomValue');
   const stages=[...document.querySelectorAll('.diagram-stage')];
-  const workspaces=['live','timeline','annual','comparison','analysis','data','settings'];
+  const workspaces=['live','timeline','annual','comparison','analysis','measurements','data','settings'];
   let zooms={},percent=100;
   try{const saved=Number(localStorage.getItem('wetter.diagramZoom'));if(Number.isFinite(saved)&&saved>=60&&saved<=140)percent=Math.round(saved/5)*5}catch(e){}
   try{const saved=JSON.parse(localStorage.getItem('wetter.diagramZooms')||'{}');for(const key of workspaces)if(Number.isFinite(saved[key])&&saved[key]>=60&&saved[key]<=140)zooms[key]=Math.round(saved[key]/5)*5}catch(e){}
