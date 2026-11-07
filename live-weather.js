@@ -40,7 +40,7 @@
  if(kind==='rain'){readings.replaceChildren();for(const [i,[key,label]] of [['rain24','Letzte 24 h'],['rain1','Letzte 1 h'],['rain10','Letzte 10 min']].entries()){const box=stat(key,label,'mm');box.classList.add('live-reading');if(i===0)box.classList.add('live-primary');readings.append(box)}readings.classList.add('live-rain-values')}
  const extras=node('div',undefined,'live-derived');
  if(kind==='thermohygro')extras.append(stat('dayMax','Heute Max','°C'),stat('dayMin','Heute Min','°C'));
- if(kind==='wind')extras.append(stat('gustMax','Böe heute Max','km/h'),stat('gustMin','Böe heute Min','km/h'));
+ if(kind==='wind'){extras.append(readings.querySelector('.wind-current-gust'),stat('gustMax','Heute Max','km/h'),stat('gustMin','Heute Min','km/h'))}
  if(kind==='solar')extras.append(stat('solarMax','Heute Max','W/m²'));
  if(kind==='pressure')extras.append(stat('pressure24','Änderung 24 h','hPa'),stat('pressure1','Änderung 1 h','hPa'));
  if(extras.children.length){extras.title='Tageswerte seit 00:00 Uhr · Europe/Zurich. Druckänderungen über gleitende Zeiträume.';if(kind==='wind')readings.querySelector('.live-wind-display').append(extras);else readings.append(extras)}
