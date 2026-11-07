@@ -42,3 +42,5 @@ body.focus-mode #view-live .live-dashboard-clock{position:absolute;left:50%;top:
 @media(max-height:650px) and (orientation:landscape){body.focus-mode #view-live{--live-main-size:50px}}
 /* Calendar boundaries stay below the plot; day and date share one centered column. */
 .live-mini-midnight{stroke:var(--muted);stroke-width:1;opacity:.8}.live-mini-day,.live-mini-date{fill:var(--muted);font-family:system-ui}.live-mini-day{font-weight:600}.live-mini-date{opacity:.85}
+/* Leave sufficient plotting height beside the shared full-width Y-axis gutter. */
+@media(max-height:850px) and (orientation:landscape){body.focus-mode #view-live .live-wind-dial{width:90px}body.focus-mode #view-live .wind-current-gust{flex-direction:row;align-items:baseline;gap:7px}body.focus-mode #view-live .wind-current-gust strong{font-size:24px}}
