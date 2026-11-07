@@ -4,7 +4,7 @@
  const config={thermohygro:{metrics:['temperature_c'],names:['Temperatur'],unit:'°C',type:'line',connectGaps:true},rain:{metrics:['rain_total_mm'],names:['Niederschlag'],unit:'mm',type:'rain'},solar:{metrics:['solar_wm2'],names:['Solarstrahlung'],unit:'W/m²',type:'bars'},wind:{metrics:['wind_kmh','gust_kmh'],names:['Wind Mittel','Böe'],unit:'km/h',type:'line'},pressure:{metrics:['pressure_hpa'],names:['Luftdruck'],unit:'hPa',type:'line'}};
  let snapshot=null,revision=0,cached=new Map();
  try{const saved=localStorage.getItem('wetter.liveCardRange');if(['1','2','6','24','168'].includes(saved))range.value=saved}catch(e){}
- const num=v=>v.toLocaleString('de-CH',{maximumFractionDigits:1}),stamp=t=>new Date(t*1000).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+ const num=v=>v.toLocaleString('de-CH',{maximumFractionDigits:1}),stamp=t=>new Date(t*1000).toLocaleTimeString('de-CH',{timeZone:'Europe/Zurich',hour:'2-digit',minute:'2-digit'});
  function message(host,text){host.replaceChildren();const p=document.createElement('p');p.className='live-mini-message';p.textContent=text;host.append(p)}
  function shells(){for(const card of grid.querySelectorAll('[data-sensor-key]')){if(!config[card.dataset.sensorKind])continue;let host=card.querySelector('.live-mini');if(!host){host=document.createElement('div');host.className='live-mini';card.append(host)}message(host,'Verlauf wird geladen …')}}
  function render(host,cfg,datasets){host.replaceChildren();const all=datasets.flatMap(d=>d.points).filter(p=>Number.isFinite(p.value));if(!all.length){message(host,cfg.type==='rain'?'Keine neuen Regenmeldungen im Zeitraum':'Keine Messwerte im Zeitraum');return}
@@ -17,7 +17,10 @@
  if(isBar){for(const p of points){if(!Number.isFinite(p.value))continue;const xx=x((p.first+p.last)/2),width=Math.max(1,Math.min(22,(p.last-p.first)/(d.end-d.start)*376*.78));add('rect',{x:Math.max(12,xx-width/2),y:y(p.value),width,height:Math.max(0,111-y(p.value)),rx:1.6,fill:color,opacity:.8,'data-mini-bar':cfg.type})}}
  else {for(const segment of WeatherLiveCardData.segments(points,Math.max(900,d.bucket_seconds*2),cfg.connectGaps)){const path=segment.map((p,i)=>(i?'L':'M')+x((p.first+p.last)/2)+','+y(p.value)).join('');add('path',{d:path,fill:'none',stroke:color,'stroke-width':index?1.8:2.3,'stroke-linejoin':'round','stroke-linecap':'round','data-mini-line':cfg.metrics[index]});if(segment.length===1)add('circle',{cx:x(segment[0].first),cy:y(segment[0].value),r:2.3,fill:color})}}
  });
- for(const [t,anchor]of [[data.start,'start'],[(data.start+data.end)/2,'middle'],[data.end,'end']])add('text',{x:x(t),y:137,'text-anchor':anchor,class:'live-mini-time'},Number(range.value)>24?new Date(t*1000).toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'}):stamp(t));
+ const axis=WeatherLiveCardData.timeAxis(data.start,data.end,range.value);
+ for(const t of axis.midnights)add('line',{x1:x(t),x2:x(t),y1:115,y2:121,class:'live-mini-midnight','data-midnight':t});
+ for(const day of axis.days){const width=x(day.end)-x(day.start);if(width<12)continue;const px=x(day.time),anchor=px<25?'start':px>375?'end':'middle',font=Math.min(9,Math.max(6,width/3.2));add('text',{x:px,y:130,'text-anchor':anchor,class:'live-mini-day','font-size':font,'data-axis-day':day.weekday},day.weekday);add('text',{x:px,y:141,'text-anchor':anchor,class:'live-mini-date','font-size':font},day.date)}
+ axis.times.forEach((t,i)=>add('text',{x:x(t),y:137,'text-anchor':i===0?'start':i===4?'end':'middle',class:'live-mini-time'},stamp(t)));
  const cursor=add('line',{x1:12,x2:12,y1:14,y2:111,class:'live-mini-cursor',visibility:'hidden','pointer-events':'none'});
  const tip=document.createElement('div');tip.className='live-mini-tooltip';tip.hidden=true;host.append(tip);
  const hide=()=>{tip.hidden=true;cursor.setAttribute('visibility','hidden')};

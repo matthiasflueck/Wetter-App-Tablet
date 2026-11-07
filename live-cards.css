@@ -40,3 +40,5 @@ body.focus-mode #view-live .live-dashboard-clock{position:absolute;left:50%;top:
 @media(orientation:portrait){body.focus-mode #view-live .live-dashboard-clock{top:0;transform:translateX(-50%)}}
 @media(max-width:1000px){.live-dashboard-clock{gap:10px}.live-dashboard-clock>span{font-size:13px}.live-dashboard-clock>strong{font-size:22px}body.focus-mode #view-live #openLiveArchive{font-size:0;padding:7px 10px}body.focus-mode #view-live #openLiveArchive:after{content:'↗';font-size:16px}}
 @media(max-height:650px) and (orientation:landscape){body.focus-mode #view-live{--live-main-size:50px}}
+/* Calendar boundaries stay below the plot; day and date share one centered column. */
+.live-mini-midnight{stroke:var(--muted);stroke-width:1;opacity:.8}.live-mini-day,.live-mini-date{fill:var(--muted);font-family:system-ui}.live-mini-day{font-weight:600}.live-mini-date{opacity:.85}
