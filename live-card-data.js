@@ -12,10 +12,17 @@
   if(!long)for(let i=0;i<5;i++)times.push(start+(end-start)*i/4);
   return {midnights,days,times};
  }
+ // NOAA solar-position equations, standard apparent horizon (90.833 degrees).
+ // https://gml.noaa.gov/grad/solcalc/solareqns.PDF
+ function sunTimes(now,latitude=46.8727,longitude=7.5616){
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)])),{year,month,day}=parts,start=Date.UTC(year,month-1,day)/1000,ordinal=Math.floor((start-Date.UTC(year,0,1)/1000)/86400)+1,yearDays=(Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000,rad=Math.PI/180,phi=latitude*rad;
+  const event=rise=>{let minutes=rise?360:1080;for(let i=0;i<3;i++){const g=2*Math.PI/yearDays*(ordinal-1+(minutes/60-12)/24),equation=229.18*(.000075+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g)),declination=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g),cosHour=Math.cos(90.833*rad)/(Math.cos(phi)*Math.cos(declination))-Math.tan(phi)*Math.tan(declination);if(cosHour< -1||cosHour>1)return null;const angle=Math.acos(cosHour)/rad;minutes=720-4*(longitude+(rise?angle:-angle))-equation}return start+minutes*60};
+  return {day:year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0'),sunrise:event(true),sunset:event(false)};
+ }
  function extrema(data){const points=(data.points||[]).filter(p=>Number.isFinite(p.value));return points.length?{min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))}:null}
  function rainTotal(data){return data.aggregation==='rain_increment'&&data.baseline_available&&!data.unknown_intervals?data.points.reduce((sum,p)=>sum+(Number.isFinite(p.value)?p.value:0),0):null}
  function baseline(data,target,tolerance=180){const points=data.points.filter(p=>Number.isFinite(p.value)&&Math.abs((p.first+p.last)/2-target)<=tolerance);return points.length?points.reduce((a,b)=>Math.abs((a.first+a.last)/2-target)<Math.abs((b.first+b.last)/2-target)?a:b).value:null}
- const api={binBars,segments,midnight,timeAxis,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
