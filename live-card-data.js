@@ -1,5 +1,20 @@
 /* Pure compact-chart preparation, shared by Mac and tablet. */
 (function(root){
+ // Steadman / Bureau of Meteorology: shade, wind at 10 m in m/s.
+ function apparentTemperature(temperature,humidity,windKmh){
+  if(![temperature,humidity,windKmh].every(Number.isFinite)||temperature<=-100||temperature>=100||humidity<0||humidity>100||windKmh<0)return null;
+  const vapour=humidity/100*6.105*Math.exp(17.27*temperature/(237.7+temperature));
+  const value=temperature+.33*vapour-.70*(windKmh/3.6)-4;
+  return Number.isFinite(value)?value:null;
+ }
+ function apparentFromSensors(sensors,now){
+  const temperature=sensors.find(s=>s.kind==='thermohygro'),wind=sensors.find(s=>s.kind==='wind');
+  if(!temperature||!wind||temperature.error||wind.error||!Number.isFinite(now))return null;
+  const t=temperature.observation,w=wind.observation;if(!t||!w)return null;
+  const times=[t.value_times?.temperature_c??t.measured_at,t.value_times?.humidity_percent??t.measured_at,w.value_times?.wind_kmh??w.measured_at];
+  if(times.some(time=>!Number.isFinite(time)||now-time>900||time-now>120)||Math.max(...times)-Math.min(...times)>600)return null;
+  return apparentTemperature(t.values?.temperature_c,t.values?.humidity_percent,w.values?.wind_kmh);
+ }
  function binBars(data,count=48){
   const span=(data.end-data.start)/count,bins=new Map();for(const p of data.points||[]){if(!Number.isFinite(p.value))continue;const t=(p.first+p.last)/2,index=Math.min(count-1,Math.max(0,Math.floor((t-data.start)/span)));let b=bins.get(index);if(!b){b={first:data.start+index*span,last:data.start+(index+1)*span,total:0,count:0,minimum:Infinity,maximum:-Infinity};bins.set(index,b)}const weight=p.count||1;b.total+=p.value*weight;b.count+=weight;b.minimum=Math.min(b.minimum,p.minimum??p.value);b.maximum=Math.max(b.maximum,p.maximum??p.value)}return [...bins.values()].map(b=>({...b,value:b.total/b.count}));
  }
@@ -22,7 +37,7 @@
  function extrema(data){const points=(data.points||[]).filter(p=>Number.isFinite(p.value));return points.length?{min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))}:null}
  function rainTotal(data){return data.aggregation==='rain_increment'&&data.baseline_available&&!data.unknown_intervals?data.points.reduce((sum,p)=>sum+(Number.isFinite(p.value)?p.value:0),0):null}
  function baseline(data,target,tolerance=180){const points=data.points.filter(p=>Number.isFinite(p.value)&&Math.abs((p.first+p.last)/2-target)<=tolerance);return points.length?points.reduce((a,b)=>Math.abs((a.first+a.last)/2-target)<Math.abs((b.first+b.last)/2-target)?a:b).value:null}
- const api={binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
