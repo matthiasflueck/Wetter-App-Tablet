@@ -75,3 +75,7 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=wind]{padding-top:10px;
 #view-live .live-storm-values .live-derived-stat>span{min-height:24px;display:flex;align-items:center;justify-content:center}#view-live .live-sensor[data-sensor-kind=lightning] .live-storm-values{align-items:start}
 
 #view-live .live-storm-values{container-type:inline-size}#view-live .live-sensor[data-sensor-kind=lightning] .live-primary strong,body.focus-mode #view-live .live-sensor[data-sensor-kind=lightning] .live-primary strong{font-size:min(var(--live-main-size),calc(29cqw / var(--storm-count-length,1) / .64))}
+
+.live-range-mode[hidden]{display:none!important}.live-mini-period-boundary{stroke:var(--muted);stroke-width:1;opacity:.85}.live-range-mode select{max-width:170px}
+
+.live-period-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#view-live .live-rain-values{container-type:inline-size}#view-live .live-sensor[data-sensor-kind=rain] .live-rain-values>.live-reading strong,body.focus-mode #view-live .live-sensor[data-sensor-kind=rain] .live-rain-values>.live-reading strong{font-size:min(var(--live-main-size),calc(29cqw / var(--rain-count-length,1) / .64))}

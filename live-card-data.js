@@ -1,5 +1,6 @@
 /* Pure compact-chart preparation, shared by Mac and tablet. */
 (function(root){
+ const swissDateTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
  // Steadman / Bureau of Meteorology: shade, wind at 10 m in m/s.
  function apparentTemperature(temperature,humidity,windKmh){
   if(![temperature,humidity,windKmh].every(Number.isFinite)||temperature<=-100||temperature>=100||humidity<0||humidity>100||windKmh<0)return null;
@@ -16,16 +17,24 @@
   return apparentTemperature(t.values?.temperature_c,t.values?.humidity_percent,w.values?.wind_kmh);
  }
  function binBars(data,count=48){
-  const span=(data.end-data.start)/count,bins=new Map();for(const p of data.points||[]){if(!Number.isFinite(p.value))continue;const t=(p.first+p.last)/2,index=Math.min(count-1,Math.max(0,Math.floor((t-data.start)/span)));let b=bins.get(index);if(!b){b={first:data.start+index*span,last:data.start+(index+1)*span,total:0,count:0,minimum:Infinity,maximum:-Infinity};bins.set(index,b)}const weight=p.count||1;b.total+=p.value*weight;b.count+=weight;b.minimum=Math.min(b.minimum,p.minimum??p.value);b.maximum=Math.max(b.maximum,p.maximum??p.value)}return [...bins.values()].map(b=>({...b,value:b.total/b.count}));
+  const span=(data.end-data.start)/count,bins=new Map();for(const p of data.points||[]){if(!Number.isFinite(p.value))continue;const t=(p.first+p.last)/2,index=Math.min(count-1,Math.max(0,Math.floor((t-data.start)/span)));let b=bins.get(index);if(!b){b={first:data.start+index*span,last:data.start+(index+1)*span,total:0,count:0,minimum:Infinity,maximum:-Infinity};bins.set(index,b)}const weight=p.count||1;b.total+=p.value*weight;b.count+=weight;b.minimum=Math.min(b.minimum,p.minimum??p.value);b.maximum=Math.max(b.maximum,p.maximum??p.value)}return [...bins.values()].map(b=>({...b,last:Math.min(b.last,data.observed_end??data.end),value:b.total/b.count}));
  }
  function segments(points,gap=900,connectGaps=false){if(connectGaps){const valid=(points||[]).filter(p=>Number.isFinite(p.value));return valid.length?[valid]:[]}const result=[];let group=[],previous=null;for(const p of points||[]){if(!Number.isFinite(p.value)){if(group.length)result.push(group);group=[];previous=null;continue}if(previous!==null&&p.first-previous>gap){if(group.length)result.push(group);group=[]}group.push(p);previous=p.last}if(group.length)result.push(group);return result}
- function midnight(now){const parts=t=>Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(t*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));const d=parts(now),wall=Date.UTC(d.year,d.month-1,d.day)/1000;let utc=wall;for(let i=0;i<3;i++){const q=parts(utc),local=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second)/1000;utc-=local-wall}return utc}
- function rangeWindow(end,selection){
-  if(Number(selection)!==8760)return {start:end-Number(selection)*3600,end};
-  const parts=t=>Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(t*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
-  const d=parts(end),year=d.year-1,day=Math.min(d.day,new Date(Date.UTC(year,d.month,0)).getUTCDate()),wall=Date.UTC(year,d.month-1,day,d.hour,d.minute,d.second)/1000;let utc=wall;
-  for(let i=0;i<3;i++){const q=parts(utc);utc-=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second)/1000-wall}
-  return {start:utc+(end-Math.floor(end)),end};
+ function midnight(now){const parts=t=>Object.fromEntries(swissDateTime.formatToParts(new Date(t*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));const d=parts(now),wall=Date.UTC(d.year,d.month-1,d.day)/1000;let utc=wall;for(let i=0;i<3;i++){const q=parts(utc),local=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second)/1000;utc-=local-wall}return utc}
+ function rangeWindow(end,selection,mode='rolling'){
+  const value=Number(selection),calendar=mode==='calendar'&&[720,8760].includes(value);
+  if(value!==8760&&!calendar)return {start:end-value*3600,end,observedEnd:end};
+  const parts=t=>Object.fromEntries(swissDateTime.formatToParts(new Date(t*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+  const utc=wall=>{let t=wall;for(let i=0;i<3;i++){const q=parts(t);t-=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second)/1000-wall}return t},d=parts(end);
+  if(calendar){const month=value===8760?0:d.month-1,start=utc(Date.UTC(d.year,month,1)/1000),finish=utc(Date.UTC(d.year+(value===8760?1:0),value===8760?0:month+1,1)/1000);return {start,end:finish,observedEnd:end}}
+  const year=d.year-1,day=Math.min(d.day,new Date(Date.UTC(year,d.month,0)).getUTCDate()),wall=Date.UTC(year,d.month-1,day,d.hour,d.minute,d.second)/1000;
+  return {start:utc(wall)+(end-Math.floor(end)),end,observedEnd:end};
+ }
+ function aggregateLong(data,selection,maximum=false){
+  const seconds=Number(selection)===8760?86400:Number(selection)===720?21600:0;
+  if(!seconds)return data;
+  const count=Math.max(1,Math.ceil((data.end-data.start)/seconds)),points=binBars(data,count).map(p=>({...p,value:maximum?p.maximum:p.value}));
+  return {...data,points,bucket_seconds:(data.end-data.start)/count,display_aggregation:maximum?'maximum':'mean'};
  }
  function timeAxis(start,end,hours){
   if(!Number.isFinite(start)||!Number.isFinite(end)||start>=end)return {midnights:[],days:[],times:[],groups:[],months:[]};
@@ -47,7 +56,7 @@
  function extrema(data){const points=(data.points||[]).filter(p=>Number.isFinite(p.value));return points.length?{min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))}:null}
  function rainTotal(data){return data.aggregation==='rain_increment'&&data.baseline_available&&!data.unknown_intervals?data.points.reduce((sum,p)=>sum+(Number.isFinite(p.value)?p.value:0),0):null}
  function baseline(data,target,tolerance=180){const points=data.points.filter(p=>Number.isFinite(p.value)&&Math.abs((p.first+p.last)/2-target)<=tolerance);return points.length?points.reduce((a,b)=>Math.abs((a.first+a.last)/2-target)<Math.abs((b.first+b.last)/2-target)?a:b).value:null}
- const api={rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
