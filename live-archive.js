@@ -4,7 +4,25 @@
  const tablet=typeof window.WEATHER_WEB_CLIENT_ID!=='undefined';let connection=null,catalog=[],revision=0,timer=null;
  const metricNames={temperature_c:'Temperatur',humidity_percent:'Feuchte',pressure_hpa:'Luftdruck',rain_total_mm:'Regenzähler',wind_kmh:'Wind',gust_kmh:'Böe',wind_direction_degrees:'Windrichtung',solar_wm2:'Solarstrahlung',uv_index:'UV-Index',lightning_count:'Blitzzähler',lightning_distance_km:'Blitzentfernung'};
  function validate(url,token){const u=new URL(url);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||u.search||u.hash||!['','/'].includes(u.pathname)||token.length<32||token.length>256)throw Error('NAS-Adresse und eigenen Lesezugang prüfen.');if(tablet&&u.protocol!=='https:')throw Error('Die Tablet-Web-App benötigt für das NAS eine HTTPS-Adresse mit gültigem Zertifikat.');return {url:u.origin,token}}
- async function request(path,query){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);try{const url=tablet?connection?.url+path:'/api/nas'+path;if(tablet&&!connection)throw Error('NAS noch nicht verbunden.');const response=await fetch(url+(query?'?'+new URLSearchParams(query):''),{headers:tablet?{Authorization:'Bearer '+connection.token}:{},signal:controller.signal,credentials:'omit',redirect:'error',cache:'no-store'});const text=await response.text();if(text.length>2097152)throw Error('Archivantwort zu gross.');const result=JSON.parse(text);if(!response.ok)throw Error(result.message||'NAS-Live-Archiv nicht erreichbar.');return result}finally{clearTimeout(timeout)}}
+ const schedule=WeatherLiveCardData.createRequestQueue(2);let catalogCached=null;
+ window.addEventListener('weather-live-connection-changed',()=>{catalogCached=null});
+ async function request(path,query,options={}){
+  if(path==='/catalog'&&catalogCached&&Date.now()-catalogCached.at<60000)return catalogCached.data;
+  const run=async()=>{
+   if(options.signal?.aborted)throw new DOMException('Abgebrochen','AbortError');
+   const controller=new AbortController(),cancel=()=>controller.abort(),timeout=setTimeout(cancel,25000);
+   options.signal?.addEventListener('abort',cancel,{once:true});
+   try{
+    const url=tablet?connection?.url+path:'/api/nas'+path;
+    if(tablet&&!connection)throw Error('NAS noch nicht verbunden.');
+    const response=await fetch(url+(query?'?'+new URLSearchParams(query):''),{headers:tablet?{Authorization:'Bearer '+connection.token}:{},signal:controller.signal,credentials:'omit',redirect:'error',cache:'no-store'});
+    const text=await response.text();if(text.length>2097152)throw Error('Archivantwort zu gross.');
+    const result=JSON.parse(text);if(!response.ok)throw Error(result.message||'NAS-Live-Archiv nicht erreichbar.');
+    if(path==='/catalog')catalogCached={at:Date.now(),data:result};return result;
+   }finally{clearTimeout(timeout);options.signal?.removeEventListener('abort',cancel)}
+  };
+  return ['/catalog','/series'].includes(path)?schedule(run,options.signal):run();
+ }
  window.WeatherNasArchive={request,connected:()=>!!connection};
  async function catalogLoad(){const result=await request('/catalog');if(!Array.isArray(result.series))throw Error('Ungültige Archivantwort.');catalog=result.series.sort((a,b)=>Number(a.sensor==='ecowitt-all')-Number(b.sensor==='ecowitt-all'));$('archiveMetric').replaceChildren();for(const [i,s] of catalog.entries()){const o=document.createElement('option');o.value=String(i);o.textContent=(metricNames[s.metric]||s.metric)+' · '+s.sensor+(s.unit?' ('+s.unit+')':'');$('archiveMetric').append(o)}if(!catalog.length)$('archiveStatus').textContent='NAS verbunden. Noch keine Messwerte aufgezeichnet.';return catalog}
  async function load(){if(!$('liveArchive').open)return;const id=++revision;$('archiveStatus').textContent='Live-Archiv wird geladen …';try{const chosen=catalog[Number($('archiveMetric').value)],identity=s=>s&&[s.provider,s.sensor,s.metric,s.unit].join('|'),selected=identity(chosen);await catalogLoad();const selectedIndex=catalog.findIndex(s=>identity(s)===selected);if(selectedIndex>=0)$('archiveMetric').value=String(selectedIndex);const s=catalog[Number($('archiveMetric').value)];if(!s){$('archivePlot').replaceChildren();return}const end=$('archiveRange').value==='custom'?new Date($('archiveEnd').value).getTime()/1000:Date.now()/1000,start=$('archiveRange').value==='custom'?new Date($('archiveStart').value).getTime()/1000:end-Number($('archiveRange').value)*3600;if(!Number.isFinite(start)||!Number.isFinite(end)||start>=end)throw Error('Bitte einen gültigen Zeitraum wählen.');const data=await request('/series',{provider:s.provider,sensor:s.sensor,metric:s.metric,unit:s.unit,start,end});if(id!==revision)return;draw(data,s);$('archiveStatus').textContent=data.points.length?'NAS · '+s.count.toLocaleString('de-CH')+' gespeicherte Werte · '+new Date(s.first*1000).toLocaleDateString('de-CH')+' bis '+new Date(s.last*1000).toLocaleString('de-CH'):'Keine Messwerte im gewählten Zeitraum.'}catch(e){if(id===revision){$('archivePlot').replaceChildren();$('archiveStatus').textContent=e.name==='AbortError'?'NAS antwortet nicht. Verbindung prüfen.':e.message}}}

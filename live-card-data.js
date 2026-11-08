@@ -56,7 +56,26 @@
  function extrema(data){const points=(data.points||[]).filter(p=>Number.isFinite(p.value));return points.length?{min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))}:null}
  function rainTotal(data){return data.aggregation==='rain_increment'&&data.baseline_available&&!data.unknown_intervals?data.points.reduce((sum,p)=>sum+(Number.isFinite(p.value)?p.value:0),0):null}
  function baseline(data,target,tolerance=180){const points=data.points.filter(p=>Number.isFinite(p.value)&&Math.abs((p.first+p.last)/2-target)<=tolerance);return points.length?points.reduce((a,b)=>Math.abs((a.first+a.last)/2-target)<Math.abs((b.first+b.last)/2-target)?a:b).value:null}
- const api={aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+  function createRequestQueue(limit=2){
+  let active=0;const waiting=[];
+  const abort=()=>new DOMException('Abgebrochen','AbortError');
+  function pump(){
+   while(active<limit&&waiting.length){
+    const job=waiting.shift();job.cleanup();
+    if(job.signal?.aborted){job.reject(abort());continue}
+    active++;
+    Promise.resolve().then(job.task).then(job.resolve,job.reject).finally(()=>{active--;pump()});
+   }
+  }
+  return (task,signal)=>new Promise((resolve,reject)=>{
+   if(signal?.aborted){reject(abort());return}
+   const job={task,signal,resolve,reject,cleanup:()=>signal?.removeEventListener('abort',cancel)};
+   function cancel(){const i=waiting.indexOf(job);if(i>=0){waiting.splice(i,1);job.cleanup();reject(abort())}}
+   signal?.addEventListener('abort',cancel,{once:true});waiting.push(job);pump();
+  });
+ }
+
+ const api={createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
