@@ -1,6 +1,6 @@
 /* Shared by tablet shells: validate downloads before one atomic storage activation. */
 (function(root){
-  const SETTINGS=['preferences','thunder','diagramZoom','diagramZooms','timelineValues','yAxes','chartOrder','timelineFog','chartHeights','temperatureNormals','annualNorm','comparisonNorm'];
+  const SETTINGS=['preferences','thunder','diagramZoom','diagramZooms','timelineValues','yAxes','chartOrder','timelineFog','chartHeights','temperatureNormals','annualNorm','comparisonNorm','liveDisplay'];
   const METRICS=['temperature','rain','solar','uv','gust','wind','humidity'];
   function ensure(condition,message){if(!condition)throw Error(message)}
   function validateMobile(data,publication){
@@ -31,6 +31,7 @@
     if(settings.preferences?.diagramBackgroundEnabled!==undefined)ensure(typeof settings.preferences.diagramBackgroundEnabled==='boolean','Ungültiger Diagrammhintergrund');
     if(settings.preferences?.diagramBackgroundColor!==undefined)ensure(settings.preferences.diagramBackgroundColor===''||/^#[0-9a-f]{6}$/i.test(settings.preferences.diagramBackgroundColor),'Ungültige Hintergrundfarbe');
     if(settings.yAxes!==undefined)for(const [key,range] of Object.entries(settings.yAxes))ensure(['temperature','rain','solar','wind','humidity','uv'].includes(key)&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.min<range.max,'Ungültige Achsengrenzen');
+    if(settings.liveDisplay!==undefined){const v=settings.liveDisplay;ensure(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>['order','colors'].includes(k)),'Ungültige Live-Darstellung');const order=v.order??[],colors=v.colors??{};ensure(Array.isArray(order)&&order.length<=100&&new Set(order).size===order.length&&order.every(k=>typeof k==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(k)),'Ungültige Kachelreihenfolge');ensure(colors&&typeof colors==='object'&&!Array.isArray(colors)&&Object.entries(colors).every(([k,c])=>['thermohygro','rain','wind','pressure','solar','lightning'].includes(k)&&typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c)),'Ungültige Kachelfarben')}
     if(settings.chartOrder!==undefined)ensure(Array.isArray(settings.chartOrder)&&settings.chartOrder.length===5&&new Set(settings.chartOrder).size===5&&settings.chartOrder.every(id=>['temperature','rain','solar','wind','humidity'].includes(id)),'Ungültige Diagrammreihenfolge');
     if(settings.thunder!==undefined)ensure(Number.isInteger(settings.thunder.count)&&settings.thunder.count>=0&&Number.isFinite(settings.thunder.distance)&&settings.thunder.distance>=0,'Ungültige Gewitterschwellen');
     if(settings.timelineFog!==undefined)ensure(typeof settings.timelineFog==='boolean','Ungültige Hochnebelanzeige');

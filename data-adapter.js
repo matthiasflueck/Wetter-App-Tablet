@@ -25,7 +25,7 @@
  }
  function seedPreferences(storage,settings,shared={}){
   // Device preferences are seeded once; shared brand text and thresholds follow the publication.
-  for(const key of ['preferences','diagramZoom','diagramZooms','timelineValues','timelineFog','yAxes','chartOrder','chartHeights','temperatureNormals','annualNorm','comparisonNorm','thunder']){
+  for(const key of ['preferences','diagramZoom','diagramZooms','timelineValues','timelineFog','yAxes','chartOrder','chartHeights','temperatureNormals','annualNorm','comparisonNorm','thunder','liveDisplay']){
    const name='wetter.'+key;if(storage.getItem(name)!==null||settings[key]===undefined)continue;
    storage.setItem(name,['annualNorm','comparisonNorm'].includes(key)?settings[key]:JSON.stringify(settings[key]));
   }
