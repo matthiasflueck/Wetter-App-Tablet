@@ -75,7 +75,14 @@
   });
  }
 
- const api={createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ function liveVersion(state){
+  const entries=value=>Object.entries(value||{}).sort(([a],[b])=>a.localeCompare(b));
+  return JSON.stringify([!!state?.recording,state?.error||null,(state?.sensors||[]).map(sensor=>[
+   sensor.key,sensor.kind,sensor.provider,sensor.name,sensor.error||null,
+   sensor.observation?[sensor.observation.measured_at,entries(sensor.observation.values),entries(sensor.observation.value_times),sensor.observation.battery_low]:null
+  ]).sort((a,b)=>a[0].localeCompare(b[0]))]);
+ }
+ const api={liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
