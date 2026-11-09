@@ -20,22 +20,33 @@
  const bounds=(key,low,high)=>customScales&&scales[key]?scales[key]:[low,high];
  function thermometer(){
   for(const card of grid.querySelectorAll('[data-sensor-kind=thermohygro]')){
-   const readings=card.querySelector('.live-values');let meter=readings.querySelector('.live-thermometer');
-   if(!meter){meter=document.createElement('div');meter.className='live-thermometer';readings.prepend(meter)}
+   const upper=card.querySelector('.live-temperature-upper');let meter=upper.querySelector('.live-thermometer');
+   if(!meter){meter=document.createElement('div');meter.className='live-thermometer';upper.prepend(meter)}
    const value=snapshot?.sensors.find(s=>s.key===card.dataset.sensorKey)?.observation?.values?.temperature_c,[low,high]=scales.thermometer;
-   const y=t=>111-(Math.max(low,Math.min(high,t))-low)/(high-low)*100,zero=y(0),id='thermo-'+(++clipNumber);
-   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 76 134');svg.setAttribute('role','img');
+   const y=t=>88-(Math.max(low,Math.min(high,t))-low)/(high-low)*82,zero=y(0),id='thermo-'+(++clipNumber);
+   const percent=n=>n+'%';
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('role','img');
    svg.setAttribute('aria-label','Thermometer: '+(Number.isFinite(value)?num(value)+' °C':'kein Messwert')+' · Skala '+low+' bis '+high+' °C');
    const add=(tag,attrs,content,parent=svg)=>{const node=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))node.setAttribute(k,v);if(content!==undefined)node.textContent=content;parent.append(node);return node};
-   const defs=add('defs',{}),gradient=add('linearGradient',{id,x1:0,y1:0,x2:0,y2:1},undefined,defs),split=(zero-11)/100;
+   const defs=add('defs',{}),gradient=add('linearGradient',{id,x1:0,y1:0,x2:0,y2:1},undefined,defs),split=(zero-6)/82;
    for(const [offset,color] of [[0,'#ef454c'],[split,'#ffc870'],[split,'#91e4ff'],[1,'#245dc7']])add('stop',{offset,'stop-color':color},undefined,gradient);
-   add('rect',{x:4,y:11,width:7,height:100,rx:3,fill:'url(#'+id+')'});
-   add('rect',{x:23,y:7,width:16,height:110,rx:8,fill:'var(--bg)',stroke:'var(--muted)','stroke-width':1});
-   add('circle',{cx:31,cy:118,r:11,fill:'var(--bg)',stroke:'var(--muted)','stroke-width':1});
-   if(Number.isFinite(value)){const color=value<0?'#64bdf7':'#ed665a',top=y(value);add('rect',{x:27,y:top,width:8,height:118-top,rx:3,fill:color});add('circle',{cx:31,cy:118,r:7,fill:color})}
-   for(let i=0;i<=20;i++){const yy=11+5*i;add('line',{x1:42,x2:i%5===0?50:46,y1:yy,y2:yy,stroke:'var(--muted)','stroke-width':.65})}
-   add('line',{x1:2,x2:54,y1:zero,y2:zero,stroke:'var(--text)','stroke-width':1.6});
-   for(const [v,yy] of [[high,11],[0,zero],[low,111]]){if(v!==0&&Math.abs(zero-yy)<10)continue;add('text',{x:56,y:yy+3,fill:v===0?'var(--text)':'var(--muted)','font-size':9,'font-weight':v===0?700:500},String(v))}
+   add('rect',{x:3,y:'6%',width:8,height:'82%',rx:4,fill:'url(#'+id+')'});
+   add('rect',{x:21,y:'4%',width:16,height:'87%',rx:8,fill:'var(--bg)',stroke:'var(--muted)'});
+   add('circle',{cx:29,cy:'91%',r:10,fill:'var(--bg)',stroke:'var(--muted)'});
+   if(Number.isFinite(value)){
+    const color=value<0?'#64bdf7':'#ed665a',top=y(value);
+    add('rect',{x:25,y:percent(top),width:8,height:percent(91-top),rx:3,fill:color});
+    add('circle',{cx:29,cy:'91%',r:6,fill:color});
+   }
+   for(let i=0;i<=20;i++){
+    const yy=percent(6+82*i/20);
+    add('line',{x1:41,x2:i%5===0?49:45,y1:yy,y2:yy,stroke:'var(--muted)','stroke-width':.65});
+   }
+   add('line',{x1:1,x2:52,y1:percent(zero),y2:percent(zero),stroke:'var(--text)','stroke-width':1.6});
+   for(const [v,yy] of [[high,6],[0,zero],[low,88]]){
+    if(v!==0&&Math.abs(zero-yy)<8)continue;
+    add('text',{x:55,y:percent(yy),dy:3,fill:v===0?'var(--text)':'var(--muted)','font-size':9,'font-weight':v===0?700:500},String(v));
+   }
    meter.replaceChildren(svg);
   }
  }
