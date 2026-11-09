@@ -351,9 +351,18 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 
 #view-live .live-rain-upper { container-type: inline-size; padding-bottom: 8px; }
 .live-rain-tank {
-  width: clamp(46px, 16cqw, 78px);
+  position: relative;
+  width: clamp(62px, 24cqw, 108px);
+  height: 0;
 }
-.live-rain-tank svg { display: block; width: 100%; height: auto; }
+.live-rain-tank svg {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  transform: translateY(calc(-50% - 24px));
+}
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-rain-values {
   display: grid;
   grid-template-columns: repeat(3, max-content);
