@@ -99,7 +99,13 @@
    sensor.observation?[sensor.observation.measured_at,entries(sensor.observation.values),entries(sensor.observation.value_times),sensor.observation.battery_low]:null
   ]).sort((a,b)=>a[0].localeCompare(b[0]))]);
  }
- const api={liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ // Hypsometric approximation using a mean column temperature and standard lapse rate.
+ function seaLevelPressure(pressure,temperature,elevation){
+  if(![pressure,temperature,elevation].every(Number.isFinite)||pressure<=0||temperature<=-100||temperature>=70||elevation< -500||elevation>5000)return null;
+  const kelvin=temperature+273.15+.00325*elevation;
+  return pressure*Math.exp(9.80665*elevation/(287.05*kelvin));
+ }
+ const api={seaLevelPressure,liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */

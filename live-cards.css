@@ -439,3 +439,17 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial {
 }
 #view-live .live-rain-upper .live-reading > span { line-height: 1.2; }
 #view-live .live-rain-upper .live-reading > strong { margin-top: 0; }
+
+#view-live .live-pressure-upper {
+  --pressure-low: light-dark(#176a9f,#77bee9);
+  --pressure-normal: var(--muted);
+  --pressure-high: light-dark(#93600d,#edba66);
+}
+.live-pressure-context { display: grid; justify-items: center; gap: 2px; color: var(--muted); font-size: 11px; }
+.live-pressure-context .live-pressure-zone { color: inherit; font-weight: 650; }
+@container (max-width: 310px) {
+  #view-live .live-sensor[data-sensor-kind=pressure] .live-pressure-upper .live-primary strong,
+  body.focus-mode #view-live .live-sensor[data-sensor-kind=pressure] .live-pressure-upper .live-primary strong {
+    font-size: min(var(--live-main-size), 17cqw);
+  }
+}

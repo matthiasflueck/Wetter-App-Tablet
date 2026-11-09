@@ -10,13 +10,27 @@
  function orderControls(){const cards=[...grid.querySelectorAll('[data-sensor-key]')];cards.forEach((card,index)=>{let controls=card.querySelector('.live-order-controls');if(!controls){controls=document.createElement('div');controls.className='live-order-controls';controls.setAttribute('role','group');controls.setAttribute('aria-label','Reihenfolge – '+card.querySelector('h3').textContent);for(const [step,symbol,label]of [[-1,'↑','nach vorne'],[1,'↓','nach hinten']]){const button=document.createElement('button');button.type='button';button.textContent=symbol;button.setAttribute('aria-label',card.querySelector('h3').textContent+' '+label);button.onclick=()=>{const neighbor=step<0?card.previousElementSibling:card.nextElementSibling;if(!neighbor)return;if(step<0)grid.insertBefore(card,neighbor);else grid.insertBefore(neighbor,card);display.order=[...grid.querySelectorAll('[data-sensor-key]')].map(c=>c.dataset.sensorKey);saveDisplay();orderControls()};controls.append(button)}card.prepend(controls)}controls.hidden=!arranging;controls.children[0].disabled=index===0;controls.children[1].disabled=index===cards.length-1})}
  const scaleSpecs={
   thermometer:['Thermometer','°C',-20,40],thermohygro:['Temperaturdiagramm','°C',-20,40],
-  rain:['Niederschlagsdiagramm','mm',0,100],rainTank:['Niederschlag · Wasserbehälter','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruckdiagramm','hPa',920,1040],barometer:['Barometer','hPa',920,1000],
+  rain:['Niederschlagsdiagramm','mm',0,100],rainTank:['Niederschlag · Wasserbehälter','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruckdiagramm','hPa',920,1040],barometer:['Barometer · Meereshöhe','hPa',970,1050],barometerZones:['Barometer · Farbzonen','hPa',1005,1020],
   solar:['Solarstrahlungsdiagramm','W/m²',0,1200],solarMeter:['Solarstrahlung · Säule','W/m²',0,1200],lightning:['Gewitter · Anzahl','Blitze',0,1000],distance:['Gewitter · Entfernung','km',0,40]
  };
  const scaleDefaults=()=>Object.fromEntries(Object.entries(scaleSpecs).map(([key,spec])=>[key,spec.slice(2)]));
- let scales=scaleDefaults(),customScales=false;
+ const defaultStationHeight=575;
+ let scales=scaleDefaults(),customScales=false,stationHeight=defaultStationHeight;
+ const validHeight=value=>Number.isFinite(value)&&value>=-500&&value<=5000;
  function validScale(key,low,high){return Number.isFinite(low)&&Number.isFinite(high)&&high>low&&Number.isFinite(high-low)&&(key==='thermometer'?low<0&&high>0:['thermohygro','pressure'].includes(key)||low>=0)}
- try{const saved=JSON.parse(localStorage.getItem('wetter.liveScales')||'{}');for(const key of Object.keys(scales)){const pair=saved.bounds?.[key];if(Array.isArray(pair)&&validScale(key,...pair))scales[key]=pair.slice(0,2)}customScales=saved.custom===true}catch(e){}
+ try{
+  const saved=JSON.parse(localStorage.getItem('wetter.liveScales')||'{}');
+  if(validHeight(saved.stationHeight))stationHeight=saved.stationHeight;
+  for(const key of Object.keys(scales)){
+   let pair=saved.bounds?.[key];
+   if(!Array.isArray(pair)||!validScale(key,...pair))continue;
+   if(key==='barometer'&&saved.barometerBasis!=='sea-level'){
+    pair=pair.map(value=>WeatherLiveCardData.seaLevelPressure(value,15,stationHeight));
+   }
+   if(validScale(key,...pair))scales[key]=pair.slice(0,2);
+  }
+  customScales=saved.custom===true;
+ }catch(e){}
  const bounds=(key,low,high)=>customScales&&scales[key]?scales[key]:[low,high];
  function gaugeBounds(key,value){
   if(customScales)return scales[key];
@@ -26,7 +40,7 @@
   }
   if(key==='barometer'){
    const center=Math.round(value/20)*20;
-   return [center-20,center+20];
+   return [Math.min(center-20,scales.barometerZones[0]-10),Math.max(center+20,scales.barometerZones[1]+10)];
   }
   if(key==='solarMeter')return [0,Math.max(200,Math.ceil(value*1.1/200)*200)];
   const target=Math.max(5,value*1.2);
@@ -176,13 +190,43 @@
     meter.className='live-barometer';
     upper.prepend(meter);
    }
-   const value=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation?.values?.pressure_hpa;
-   const [low,high]=gaugeBounds('barometer',value);
+   const observation=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation;
+   const stationPressure=observation?.values?.pressure_hpa;
+   const official=observation?.values?.pressure_qff_hpa;
+   const temperature=snapshot?.sensors.find(sensor=>sensor.kind==='thermohygro')?.observation?.values?.temperature_c;
+   const elevation=snapshot?.station?Number($('liveStation').selectedOptions[0]?.dataset.elevation):stationHeight;
+   const value=Number.isFinite(official)?official:WeatherLiveCardData.seaLevelPressure(stationPressure,temperature,elevation);
+   const [low,high]=gaugeBounds('barometer',value),[lowZone,highZone]=scales.barometerZones;
+   const zones=[['Tief','var(--pressure-low)','☁',low,lowZone],['Normal','var(--pressure-normal)','◐',lowZone,highZone],['Hoch','var(--pressure-high)','☀',highZone,high]];
+   const zone=zones[value<lowZone?0:value<highZone?1:2];
+   const primary=card.querySelector('.live-primary strong');
+   const unit=document.createElement('small');
+   unit.textContent=' hPa';
+   primary.replaceChildren(Number.isFinite(value)?num(value,0):'–',unit);
+   let context=card.querySelector('.live-pressure-context');
+   if(!context){
+    context=document.createElement('div');context.className='live-pressure-context';primary.after(context);
+   }
+   context.replaceChildren();
+   if(Number.isFinite(value)){
+    const label=document.createElement('span');
+    label.className='live-pressure-zone';label.style.color=zone[1];label.textContent=zone[2]+' '+zone[0];
+    context.append(label);
+   }
+   if(Number.isFinite(stationPressure)){
+    const local=document.createElement('span');local.textContent=num(stationPressure,0)+' hPa an der Station';context.append(local);
+   }
+   const source=Number.isFinite(official)?'MeteoSchweiz · offizieller QFF':Number.isFinite(value)?'Näherung aus Stationsdruck und Aussentemperatur · '+elevation+' m ü. M.':'Meereshöhendruck nicht verfügbar';
+   primary.title=source;
+   const info=card.querySelector('.live-info-panel');
+   let note=info.querySelector('.live-pressure-source');
+   if(!note){note=document.createElement('p');note.className='live-pressure-source';info.append(note)}
+   note.textContent=source+' · Druckänderungen beziehen sich auf den gemessenen Stationsdruck.';
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 144 123');
    svg.setAttribute('role','img');
    const reading=Number.isFinite(value)?num(value)+' hPa':'kein Messwert';
-   svg.setAttribute('aria-label','Barometer '+reading+' · Skala '+low+' bis '+high+' hPa');
+   svg.setAttribute('aria-label','Barometer auf Meereshöhe · '+reading+(Number.isFinite(value)?' · '+zone[0]:'')+' · Skala '+low+' bis '+high+' hPa');
    const add=(tag,attributes,label)=>{
     const element=document.createElementNS(svg.namespaceURI,tag);
     for(const [name,attribute] of Object.entries(attributes))element.setAttribute(name,attribute);
@@ -193,8 +237,13 @@
     const radians=angle*Math.PI/180;
     return [72+radius*Math.sin(radians),66-radius*Math.cos(radians)];
    };
-   const [startX,startY]=point(-120,57),[endX,endY]=point(120,57);
-   add('path',{d:`M ${startX} ${startY} A 57 57 0 1 1 ${endX} ${endY}`,fill:'none',stroke:'var(--sensor)','stroke-opacity':.45,'stroke-width':4,'stroke-linecap':'round'});
+   const angleFor=pressure=>-120+240*Math.max(0,Math.min(1,(pressure-low)/(high-low)));
+   for(const [,color,,first,last] of zones){
+    const a=angleFor(first),b=angleFor(last);
+    if(b<=a)continue;
+    const [x1,y1]=point(a,57),[x2,y2]=point(b,57);
+    add('path',{d:`M ${x1} ${y1} A 57 57 0 ${Number(b-a>180)} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':5});
+   }
    for(let i=0;i<=24;i++){
     const angle=-120+10*i,major=i%6===0;
     const [x1,y1]=point(angle,major?47:51),[x2,y2]=point(angle,55);
@@ -205,26 +254,34 @@
     }
    }
    if(Number.isFinite(value)){
-    const angle=-120+240*Math.max(0,Math.min(1,(value-low)/(high-low)));
+    const angle=angleFor(value);
     const [x,y]=point(angle,44),[tailX,tailY]=point(angle+180,9);
-    add('line',{x1:tailX,y1:tailY,x2:x,y2:y,stroke:'var(--sensor)','stroke-width':2.8,'stroke-linecap':'round'});
-    add('circle',{cx:72,cy:66,r:4.5,fill:'var(--sensor)'});
+    add('line',{x1:tailX,y1:tailY,x2:x,y2:y,stroke:zone[1],'stroke-width':2.8,'stroke-linecap':'round'});
+    add('circle',{cx:72,cy:66,r:4.5,fill:zone[1]});
    }
-   add('text',{x:72,y:105,'text-anchor':'middle',fill:'var(--muted)','font-size':10},'hPa');
+   add('text',{x:72,y:105,'text-anchor':'middle',fill:'var(--muted)','font-size':10},'hPa · Meer');
+   for(const [i,[label,color,icon]] of zones.entries())add('text',{x:29+43*i,y:120,'text-anchor':'middle',fill:color,'font-size':11},icon+' '+label);
    meter.replaceChildren(svg);
   }
  }
  function redrawScales(){thermometer();solarMeter();barometer();rainTanks();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
  const scaleToggle=$('liveScaleToggle'),scaleFields=$('liveScaleFields'),scaleStatus=$('liveScaleStatus');
  function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent=customScales?'↕ Eigene':'↕ Auto';scaleToggle.title=customScales?'Eigene Diagrammskalen':'Automatische Diagrammskalen';scaleToggle.setAttribute('aria-label',scaleToggle.title)}
- function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales}));return true}catch(e){return false}}
+ function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales,barometerBasis:'sea-level',stationHeight}));return true}catch(e){return false}}
+ const elevationField=document.createElement('fieldset'),elevationTitle=document.createElement('legend'),elevationLabel=document.createElement('label'),elevationInput=document.createElement('input');
+ elevationTitle.textContent='Eigene Wetterstation';
+ elevationLabel.textContent='Sensorhöhe · m ü. M.';
+ Object.assign(elevationInput,{type:'number',step:'any',required:true,min:-500,max:5000,value:stationHeight});
+ elevationLabel.append(elevationInput);
+ elevationField.append(elevationTitle,elevationLabel);
+ scaleFields.append(elevationField);
  const scaleInputs={};
  for(const [key,[name,unit]] of Object.entries(scaleSpecs)){
   const field=document.createElement('fieldset'),title=document.createElement('legend');title.textContent=name+' · '+unit;field.append(title);
-  scaleInputs[key]=['Min','Max'].map((label,i)=>{const wrap=document.createElement('label'),input=document.createElement('input');wrap.textContent=label;input.type='number';input.step='any';input.required=true;input.value=scales[key][i];input.setAttribute('aria-label',name+' '+label);wrap.append(input);field.append(wrap);return input});scaleFields.append(field);
+  scaleInputs[key]=(key==='barometerZones'?['Tief unter','Hoch ab']:['Min','Max']).map((label,i)=>{const wrap=document.createElement('label'),input=document.createElement('input');wrap.textContent=label;input.type='number';input.step='any';input.required=true;input.value=scales[key][i];input.setAttribute('aria-label',name+' '+label);wrap.append(input);field.append(wrap);return input});scaleFields.append(field);
  }
- $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}scales=next;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawScales()};
- $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawScales()};
+ $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}if(!validHeight(elevationInput.valueAsNumber))return;stationHeight=elevationInput.valueAsNumber;scales=next;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawScales()};
+ $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();stationHeight=defaultStationHeight;elevationInput.value=stationHeight;for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawScales()};
  scaleToggle.onclick=()=>{customScales=!customScales;saveScales();syncScaleToggle();redrawScales()};syncScaleToggle();
  function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter();barometer();rainTanks()}
  $('liveArrange').onclick=()=>{arranging=!arranging;$('liveArrange').setAttribute('aria-pressed',String(arranging));orderControls()};
