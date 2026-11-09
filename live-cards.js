@@ -30,10 +30,11 @@
    if(!Array.isArray(pair)||!validScale(key,...pair))continue;
    if(key==='barometer'&&saved.barometerBasis!=='sea-level'){
     pair=pair.map(value=>WeatherLiveCardData.seaLevelPressure(value,15,stationHeight));
-    if(validScale(key,...pair)){
-     const rounded=pair.map(value=>Math.round(value*10)/10);
-     if(validScale(key,...rounded))pair=rounded;
-    }
+   }
+   // Earlier versions saved the converted bounds at full floating-point precision.
+   if(key==='barometer'&&validScale(key,...pair)&&pair.some(value=>Math.abs(value-Number(value.toFixed(6)))>1e-9)){
+    const rounded=pair.map(value=>Math.round(value*10)/10);
+    if(validScale(key,...rounded))pair=rounded;
    }
    if(validScale(key,...pair))scales[key]=pair.slice(0,2);
   }
