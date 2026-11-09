@@ -30,7 +30,7 @@
    const add=(tag,attrs,content,parent=svg)=>{const node=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))node.setAttribute(k,v);if(content!==undefined)node.textContent=content;parent.append(node);return node};
    const defs=add('defs',{}),gradient=add('linearGradient',{id,x1:0,y1:0,x2:0,y2:1},undefined,defs),split=(zero-6)/82;
    for(const [offset,color] of [[0,'#ef454c'],[split,'#ffc870'],[split,'#91e4ff'],[1,'#245dc7']])add('stop',{offset,'stop-color':color},undefined,gradient);
-   add('rect',{x:3,y:'6%',width:8,height:'82%',rx:4,fill:'url(#'+id+')'});
+   add('rect',{x:5,y:'6%',width:4,height:'82%',rx:2,fill:'url(#'+id+')'});
    add('rect',{x:21,y:'4%',width:16,height:'87%',rx:8,fill:'var(--bg)',stroke:'var(--muted)'});
    add('circle',{cx:29,cy:'91%',r:10,fill:'var(--bg)',stroke:'var(--muted)'});
    if(Number.isFinite(value)){

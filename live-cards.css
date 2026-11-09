@@ -354,7 +354,7 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
   grid-template-columns: clamp(59px, 7vw, 88px) minmax(0, 260px);
   grid-template-rows: auto 1fr;
   justify-content: center;
-  column-gap: 4px;
+  column-gap: 2px;
   padding-bottom: 8px;
 }
 #view-live .live-rain-upper > .live-sensor-heading,
@@ -369,9 +369,9 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-rain-values {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 5px 9px;
+  gap: 12px clamp(14px, 1.5vw, 21px);
 }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-primary strong {
   font-size: var(--live-main-size);
