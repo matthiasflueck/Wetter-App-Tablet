@@ -38,21 +38,35 @@
     add('rect',{x:25,y:percent(top),width:8,height:percent(91-top),rx:3,fill:color});
     add('circle',{cx:29,cy:'91%',r:6,fill:color});
    }
-   for(let i=0;i<=20;i++){
-    const yy=percent(6+82*i/20);
-    add('line',{x1:41,x2:i%5===0?49:45,y1:yy,y2:yy,stroke:'var(--muted)','stroke-width':.65});
+   const targetStep=(high-low)/6;
+   const magnitude=10**Math.floor(Math.log10(targetStep));
+   const majorStep=([1,2,5,10].find(step=>step*magnitude>=targetStep)||10)*magnitude;
+   const labels=[high,0,low];
+   if(Number.isFinite(majorStep)&&majorStep>0){
+    const minorStep=majorStep/5;
+    const firstTick=Math.ceil(low/minorStep);
+    for(let i=0;i<=35;i++){
+     const index=firstTick+i,t=index*minorStep;
+     if(t>high+minorStep*1e-8)break;
+     const major=index%5===0;
+     const yy=percent(y(t));
+     add('line',{x1:41,x2:major?49:45,y1:yy,y2:yy,stroke:'var(--muted)','stroke-width':.65});
+     if(major&&labels.every(v=>Math.abs(y(v)-y(t))>=8))labels.push(t);
+    }
    }
    add('line',{x1:1,x2:52,y1:percent(zero),y2:percent(zero),stroke:'var(--text)','stroke-width':1.6});
-   for(const [v,yy] of [[high,6],[0,zero],[low,88]]){
+   for(const v of labels){
+    const yy=y(v);
     if(v!==0&&Math.abs(zero-yy)<8)continue;
-    add('text',{x:55,y:percent(yy),dy:3,fill:v===0?'var(--text)':'var(--muted)','font-size':9,'font-weight':v===0?700:500},String(v));
+    const label=v!==0&&Math.abs(v)<.01?Number(v.toPrecision(3)).toString():v.toLocaleString('de-CH',{maximumFractionDigits:2});
+    add('text',{x:53,y:percent(yy),dy:3,fill:v===0?'var(--text)':'var(--muted)','font-size':9,'font-weight':v===0?700:500},label);
    }
    meter.replaceChildren(svg);
   }
  }
  function redrawScales(){thermometer();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
  const scaleToggle=$('liveScaleToggle'),scaleFields=$('liveScaleFields'),scaleStatus=$('liveScaleStatus');
- function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent='Skalen: '+(customScales?'Benutzerdefiniert':'Automatisch')}
+ function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent=customScales?'↕ Eigene':'↕ Auto';scaleToggle.title=customScales?'Eigene Diagrammskalen':'Automatische Diagrammskalen';scaleToggle.setAttribute('aria-label',scaleToggle.title)}
  function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales}));return true}catch(e){return false}}
  const scaleInputs={};
  for(const [key,[name,unit]] of Object.entries(scaleSpecs)){
@@ -70,7 +84,7 @@
  function solarTimes(){const times=WeatherLiveCardData.sunTimes(Date.now()/1000),format=t=>Number.isFinite(t)?new Date(Math.round(t/60)*60000).toLocaleTimeString('de-CH',{timeZone:'Europe/Zurich',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}):'–';for(const card of grid.querySelectorAll('[data-sensor-kind=solar]')){let host=card.querySelector('.live-sun-times');if(!host){host=document.createElement('div');host.className='live-sun-times';for(const [key,label,arrow]of [['sunrise','Sonnenaufgang','M12 9V2m-3 3 3-3 3 3'],['sunset','Sonnenuntergang','M12 2v7m-3-3 3 3 3-3']]){const block=document.createElement('div');block.className='live-sun-event';block.title=label+' · astronomische Näherung, lokaler Horizont nicht berücksichtigt';block.setAttribute('aria-label',label);const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('aria-hidden','true');const path=document.createElementNS(icon.namespaceURI,'path');path.setAttribute('d','M2 18h20M6 17a6 6 0 0 1 12 0M3 11l2 2m14 0 2-2 '+arrow);icon.append(path);const time=document.createElement('time');time.dataset.sunTime=key;block.append(icon,time);host.append(block)}card.querySelector('.live-values').prepend(host)}for(const time of host.querySelectorAll('time')){const t=times[time.dataset.sunTime];time.textContent=format(t);if(Number.isFinite(t))time.dateTime=new Date(t*1000).toISOString();else time.removeAttribute('datetime')}}}
  setInterval(()=>{if(location.hash==='#live'&&!document.hidden){solarTimes();feelsLike()}},60000);
  let longModes={'720':'rolling','8760':'rolling'};try{const saved=JSON.parse(localStorage.getItem('wetter.liveLongModes')||'{}');for(const key of ['720','8760'])if(['rolling','calendar'].includes(saved[key]))longModes[key]=saved[key]}catch(e){}
- function syncRangeMode(){const long=['720','8760'].includes(range.value);$('liveRangeModeControl').hidden=!long;if(long){mode.options[0].textContent=range.value==='720'?'Letzte 30 Tage':'Letzte 12 Monate';mode.options[1].textContent=range.value==='720'?'Laufender Monat':'Laufendes Jahr';mode.value=longModes[range.value]}}
+ function syncRangeMode(){const long=['720','8760'].includes(range.value);$('liveRangeModeControl').hidden=!long;if(long){mode.options[0].textContent=range.value==='720'?'30 Tage':'12 Monate';mode.options[1].textContent=range.value==='720'?'Kalendermonat':'Kalenderjahr';mode.value=longModes[range.value]}}
  const windowFor=now=>WeatherLiveCardData.rangeWindow(now,range.value,mode.value),calendarMode=()=>['720','8760'].includes(range.value)&&mode.value==='calendar';
  const periodLabel=()=>calendarMode()?new Intl.DateTimeFormat('de-CH',{timeZone:'Europe/Zurich',...(range.value==='720'?{month:'long'}:{year:'numeric'})}).format(new Date()):({'168':'7 Tage','720':'30 Tage','8760':'12 Monate'}[range.value]||range.value+' h');
  const beginningLabel=()=>new Date(windowFor(Date.now()/1000).start*1000).toLocaleDateString('de-CH',{timeZone:'Europe/Zurich',day:'2-digit',month:'2-digit'});
