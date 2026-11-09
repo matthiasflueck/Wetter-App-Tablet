@@ -310,13 +310,17 @@
  try{if(['thermohygro','wind','solar'].includes(kind)){const metric={thermohygro:'temperature_c',wind:'gust_kmh',solar:'solar_wm2'}[kind],data=cached.get(sensor.key)?.datasets.find((d,i)=>cached.get(sensor.key).cfg.metrics[i]===metric)||await series(metric,start,now),values=data&&WeatherLiveCardData.extrema(data),spec=catalog.series.find(s=>s.sensor===sensor.key&&s.metric===metric),partial=spec?.first>start+120,detail='Anzeigezeitraum: '+label+(partial?' · Aufzeichnung erst ab '+new Date(spec.first*1000).toLocaleString('de-CH'):''),keys={thermohygro:['dayMax','dayMin'],wind:['gustMax','gustMin'],solar:['solarMax']}[kind];put(keys[0],values?.max,detail,kind==='solar');if(keys[1])put(keys[1],values?.min,detail)}
  if(kind==='pressure'){const current=sensor.observation?.values.pressure_hpa,end=sensor.observation?.value_times?.pressure_hpa??sensor.observation?.measured_at;await Promise.all((hours===1?[hours]:[hours,1]).map(async comparisonHours=>{if(!Number.isFinite(end))return;const target=comparisonHours===hours&&calendarMode()?start:end-comparisonHours*3600,data=await series('pressure_hpa',target-180,target+180),base=data&&WeatherLiveCardData.baseline(data,target);const valid=Number.isFinite(current)&&Number.isFinite(base);put(comparisonHours===hours?'pressure24':'pressure1',valid?current-base:null,valid?'Änderung gegenüber '+new Date(target*1000).toLocaleString('de-CH')+' · Ausgangswert innerhalb ±3 Minuten.':'Noch kein passender Archivwert von vor '+comparisonHours+' Stunden vorhanden. Die Änderung erscheint automatisch, sobald ein Vergleichswert verfügbar ist.')}))}
  if(kind==='rain'&&catalog.capabilities?.includes('rain_increment_v1')){
-  const fresh=now-(sensor.last_success_at||0)<(snapshot.station?1200:180)&&!sensor.error;
+  const meteo=sensor.provider==='meteoswiss';
+  const fresh=now-(sensor.last_success_at||0)<180&&!sensor.error;
   const windows=[[hours*3600,'rain24'],...(hours===1?[]:[[3600,'rain1']]),[600,'rain10']];
   await Promise.all(windows.map(async([span,key])=>{
-   const data=await series('rain_total_mm',now-span,now,{aggregation:'rain_increment',bucket_seconds:Math.max(60,Math.ceil(span/48))});
+   const useRainTime=meteo&&(key!=='rain24'||Number(range.value)<720);
+   const end=useRainTime?sensor.observation.measured_at:now;
+   const data=await series('rain_total_mm',end-span,end,{aggregation:'rain_increment',bucket_seconds:Math.max(60,Math.ceil(span/48))});
    const total=data?WeatherLiveCardData.rainTotal(data):null;
    const detail=total===null?'Kein ausreichend gesicherter Ausgangswert im NAS-Archiv.':
-    fresh?(snapshot.station?'Offizielle Niederschlagsmengen von MeteoSchweiz.':'Gesicherte Zählerzunahmen aus dem NAS-Archiv.'):'Archivstand · Der letzte erfolgreiche Sensorabruf liegt länger zurück oder der aktuelle Abruf ist fehlgeschlagen.';
+    meteo?'Offizielle Niederschlagsmengen von MeteoSchweiz'+(useRainTime?' · bis '+stamp(end):'')+'.':
+    fresh?'Gesicherte Zählerzunahmen aus dem NAS-Archiv.':'Archivstand · Der letzte erfolgreiche Sensorabruf liegt länger zurück oder der aktuelle Abruf ist fehlgeschlagen.';
    put(key,total,detail,total>50);
   }));
  }
