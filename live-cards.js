@@ -18,11 +18,26 @@
  function validScale(key,low,high){return Number.isFinite(low)&&Number.isFinite(high)&&high>low&&Number.isFinite(high-low)&&(key==='thermometer'?low<0&&high>0:['thermohygro','pressure'].includes(key)||low>=0)}
  try{const saved=JSON.parse(localStorage.getItem('wetter.liveScales')||'{}');for(const key of Object.keys(scales)){const pair=saved.bounds?.[key];if(Array.isArray(pair)&&validScale(key,...pair))scales[key]=pair.slice(0,2)}customScales=saved.custom===true}catch(e){}
  const bounds=(key,low,high)=>customScales&&scales[key]?scales[key]:[low,high];
+ function gaugeBounds(key,value){
+  if(customScales)return scales[key];
+  if(!Number.isFinite(value))return scaleSpecs[key].slice(2);
+  if(key==='thermometer'){
+   return [Math.min(-10,Math.floor((value-5)/10)*10),Math.max(20,Math.ceil((value+5)/10)*10)];
+  }
+  if(key==='barometer'){
+   const center=Math.round(value/20)*20;
+   return [center-20,center+20];
+  }
+  if(key==='solarMeter')return [0,Math.max(200,Math.ceil(value*1.1/200)*200)];
+  const target=Math.max(5,value*1.2);
+  const magnitude=10**Math.floor(Math.log10(target));
+  return [0,[1,2,5,10].map(step=>step*magnitude).find(limit=>limit>=target)];
+ }
  function thermometer(){
   for(const card of grid.querySelectorAll('[data-sensor-kind=thermohygro]')){
    const upper=card.querySelector('.live-temperature-upper');let meter=upper.querySelector('.live-thermometer');
    if(!meter){meter=document.createElement('div');meter.className='live-thermometer';upper.prepend(meter)}
-   const value=snapshot?.sensors.find(s=>s.key===card.dataset.sensorKey)?.observation?.values?.temperature_c,[low,high]=scales.thermometer;
+   const value=snapshot?.sensors.find(s=>s.key===card.dataset.sensorKey)?.observation?.values?.temperature_c,[low,high]=gaugeBounds('thermometer',value);
    const y=t=>88-(Math.max(low,Math.min(high,t))-low)/(high-low)*82,zero=y(0),id='thermo-'+(++clipNumber);
    const percent=n=>n+'%';
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('role','img');
@@ -73,8 +88,8 @@
     meter.className='live-solar-meter';
     upper.append(meter);
    }
-   const [low,high]=scales.solarMeter;
    const value=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation?.values?.solar_wm2;
+   const [low,high]=gaugeBounds('solarMeter',value);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('role','img');
    const reading=Number.isFinite(value)?num(value)+' W/m²':'kein Messwert';
@@ -114,7 +129,7 @@
    meter.className='live-rain-tank';
    readings.prepend(meter);
   }
-  const [low,high]=scales.rainTank;
+  const [low,high]=gaugeBounds('rainTank',value);
   const top=17,bottom=115,level=bottom-(bottom-top)*Math.max(0,Math.min(1,(value-low)/(high-low)));
   const id='rain-water-'+(++clipNumber);
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -161,8 +176,8 @@
     meter.className='live-barometer';
     upper.prepend(meter);
    }
-   const [low,high]=scales.barometer;
    const value=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation?.values?.pressure_hpa;
+   const [low,high]=gaugeBounds('barometer',value);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 144 123');
    svg.setAttribute('role','img');

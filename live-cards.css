@@ -433,3 +433,9 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial {
 
 #liveStation { max-width: min(170px, 32vw); }
 #openLiveArchive[hidden] { display: none; }
+
+#view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-reading {
+  gap: 1px;
+}
+#view-live .live-rain-upper .live-reading > span { line-height: 1.2; }
+#view-live .live-rain-upper .live-reading > strong { margin-top: 0; }
