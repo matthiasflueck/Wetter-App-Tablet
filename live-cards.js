@@ -10,7 +10,7 @@
  function orderControls(){const cards=[...grid.querySelectorAll('[data-sensor-key]')];cards.forEach((card,index)=>{let controls=card.querySelector('.live-order-controls');if(!controls){controls=document.createElement('div');controls.className='live-order-controls';controls.setAttribute('role','group');controls.setAttribute('aria-label','Reihenfolge – '+card.querySelector('h3').textContent);for(const [step,symbol,label]of [[-1,'↑','nach vorne'],[1,'↓','nach hinten']]){const button=document.createElement('button');button.type='button';button.textContent=symbol;button.setAttribute('aria-label',card.querySelector('h3').textContent+' '+label);button.onclick=()=>{const neighbor=step<0?card.previousElementSibling:card.nextElementSibling;if(!neighbor)return;if(step<0)grid.insertBefore(card,neighbor);else grid.insertBefore(neighbor,card);display.order=[...grid.querySelectorAll('[data-sensor-key]')].map(c=>c.dataset.sensorKey);saveDisplay();orderControls()};controls.append(button)}card.prepend(controls)}controls.hidden=!arranging;controls.children[0].disabled=index===0;controls.children[1].disabled=index===cards.length-1})}
  const scaleSpecs={
   thermometer:['Thermometer','°C',-20,40],thermohygro:['Temperaturdiagramm','°C',-20,40],
-  rain:['Niederschlag','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruck','hPa',920,1040],
+  rain:['Niederschlag','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruckdiagramm','hPa',920,1040],barometer:['Barometer','hPa',920,1000],
   solar:['Solarstrahlungsdiagramm','W/m²',0,1200],solarMeter:['Solarstrahlung · Säule','W/m²',0,1200],lightning:['Gewitter · Anzahl','Blitze',0,1000],distance:['Gewitter · Entfernung','km',0,40]
  };
  const scaleDefaults=()=>Object.fromEntries(Object.entries(scaleSpecs).map(([key,spec])=>[key,spec.slice(2)]));
@@ -104,7 +104,54 @@
    meter.replaceChildren(svg);
   }
  }
- function redrawScales(){thermometer();solarMeter();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
+ function barometer(){
+  for(const card of grid.querySelectorAll('[data-sensor-kind=pressure]')){
+   const upper=card.querySelector('.live-pressure-upper');
+   let meter=upper.querySelector('.live-barometer');
+   if(!meter){
+    meter=document.createElement('div');
+    meter.className='live-barometer';
+    upper.prepend(meter);
+   }
+   const [low,high]=scales.barometer;
+   const value=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation?.values?.pressure_hpa;
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+   svg.setAttribute('viewBox','0 0 144 123');
+   svg.setAttribute('role','img');
+   const reading=Number.isFinite(value)?num(value)+' hPa':'kein Messwert';
+   svg.setAttribute('aria-label','Barometer '+reading+' · Skala '+low+' bis '+high+' hPa');
+   const add=(tag,attributes,label)=>{
+    const element=document.createElementNS(svg.namespaceURI,tag);
+    for(const [name,attribute] of Object.entries(attributes))element.setAttribute(name,attribute);
+    if(label!==undefined)element.textContent=label;
+    svg.append(element);
+   };
+   const point=(angle,radius)=>{
+    const radians=angle*Math.PI/180;
+    return [72+radius*Math.sin(radians),66-radius*Math.cos(radians)];
+   };
+   const [startX,startY]=point(-120,57),[endX,endY]=point(120,57);
+   add('path',{d:`M ${startX} ${startY} A 57 57 0 1 1 ${endX} ${endY}`,fill:'none',stroke:'var(--sensor)','stroke-opacity':.45,'stroke-width':4,'stroke-linecap':'round'});
+   for(let i=0;i<=24;i++){
+    const angle=-120+10*i,major=i%6===0;
+    const [x1,y1]=point(angle,major?47:51),[x2,y2]=point(angle,55);
+    add('line',{x1,y1,x2,y2,stroke:'var(--muted)','stroke-width':major?1.7:1});
+    if(major){
+     const [x,y]=point(angle,37);
+     add('text',{x,y:y+3,'text-anchor':'middle',fill:'var(--muted)','font-size':9},num(low+(high-low)*i/24));
+    }
+   }
+   if(Number.isFinite(value)){
+    const angle=-120+240*Math.max(0,Math.min(1,(value-low)/(high-low)));
+    const [x,y]=point(angle,44),[tailX,tailY]=point(angle+180,9);
+    add('line',{x1:tailX,y1:tailY,x2:x,y2:y,stroke:'var(--sensor)','stroke-width':2.8,'stroke-linecap':'round'});
+    add('circle',{cx:72,cy:66,r:4.5,fill:'var(--sensor)'});
+   }
+   add('text',{x:72,y:105,'text-anchor':'middle',fill:'var(--muted)','font-size':10},'hPa');
+   meter.replaceChildren(svg);
+  }
+ }
+ function redrawScales(){thermometer();solarMeter();barometer();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
  const scaleToggle=$('liveScaleToggle'),scaleFields=$('liveScaleFields'),scaleStatus=$('liveScaleStatus');
  function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent=customScales?'↕ Eigene':'↕ Auto';scaleToggle.title=customScales?'Eigene Diagrammskalen':'Automatische Diagrammskalen';scaleToggle.setAttribute('aria-label',scaleToggle.title)}
  function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales}));return true}catch(e){return false}}
@@ -116,7 +163,7 @@
  $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}scales=next;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawScales()};
  $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawScales()};
  scaleToggle.onclick=()=>{customScales=!customScales;saveScales();syncScaleToggle();redrawScales()};syncScaleToggle();
- function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter()}
+ function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter();barometer()}
  $('liveArrange').onclick=()=>{arranging=!arranging;$('liveArrange').setAttribute('aria-pressed',String(arranging));orderControls()};
  for(const [kind,[label,color]]of Object.entries(defaults)){const field=document.createElement('label'),input=document.createElement('input');field.append(document.createTextNode(label));input.type='color';input.value=display.colors[kind]||color;input.dataset.liveColor=kind;input.setAttribute('aria-label','Kachelfarbe '+label);input.oninput=()=>{display.colors[kind]=input.value;saveDisplay();applyDisplay();$('liveAppearanceStatus').textContent='Kachelfarbe gespeichert.'};field.append(input);$('liveColorSettings').append(field)}
  $('liveColorsDefault').onclick=()=>{display.colors={};saveDisplay();for(const input of $('liveColorSettings').querySelectorAll('input'))input.value=defaults[input.dataset.liveColor][1];applyDisplay();$('liveAppearanceStatus').textContent='Standardfarben wiederhergestellt.'};

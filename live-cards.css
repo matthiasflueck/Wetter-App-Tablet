@@ -261,3 +261,72 @@ body.focus-mode #view-live .live-solar-upper { flex: 0 0 auto; }
   #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-reading:not(.live-primary) { grid-column: 2 / 4; }
   #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-derived { grid-column: 2 / 4; grid-row: 3; }
 }
+
+/* Centre each instrument together with its readings. */
+#view-live .live-sensor:is([data-sensor-kind=thermohygro],[data-sensor-kind=solar]) { container-type: inline-size; }
+#view-live .live-temperature-upper {
+  grid-template-columns: 70px minmax(0, max-content);
+  justify-content: center;
+}
+#view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper > .live-values {
+  container-type: normal;
+}
+#view-live .live-solar-upper {
+  grid-template-columns: 58px minmax(0, max-content);
+  justify-content: center;
+  column-gap: 3px;
+}
+#view-live .live-solar-upper > .live-sensor-heading,
+#view-live .live-solar-upper > .live-values { grid-column: 2; }
+#view-live .live-solar-upper > .live-sensor-heading > .live-identity { justify-self: start; }
+.live-solar-meter { grid-column: 1; }
+#view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper > .live-values {
+  grid-template-columns: 32px minmax(0, max-content) max-content;
+  column-gap: 4px;
+  container-type: normal;
+}
+#view-live .live-solar-upper .live-sun-times { gap: 12px; }
+#view-live .live-solar-upper .live-sun-event svg { width: 19px; height: 19px; }
+@container (max-width: 310px) {
+  #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-primary,
+  #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-reading:not(.live-primary) { grid-column: 2 / 4; }
+  #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-derived {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+  }
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-primary,
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-reading:not(.live-primary) { grid-column: 2 / 4; }
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-derived { grid-column: 2 / 4; grid-row: 3; }
+}
+
+#view-live .live-pressure-upper {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: clamp(80px, 9vw, 138px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 6px;
+}
+body.focus-mode #view-live .live-pressure-upper { flex: 0 0 auto; }
+#view-live .live-pressure-upper > .live-sensor-heading { grid-column: 1 / -1; }
+#view-live .live-pressure-upper > .live-values {
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-content: center;
+  row-gap: 3px;
+}
+#view-live .live-pressure-upper .live-values > .live-primary { grid-column: 1; grid-row: 1; white-space: nowrap; }
+#view-live .live-pressure-upper .live-values > .live-derived {
+  grid-column: 1;
+  grid-row: 2;
+  flex-flow: row wrap;
+  justify-content: center;
+  gap: 4px 9px;
+}
+#view-live .live-pressure-upper .live-derived-stat > strong { font-size: clamp(14px, 1.55vw, 24px); }
+.live-barometer { grid-column: 1; grid-row: 2; align-self: center; }
+.live-barometer svg { display: block; width: 100%; height: auto; }
