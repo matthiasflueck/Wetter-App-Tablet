@@ -187,9 +187,22 @@
  const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 400 144');svg.setAttribute('role','img');svg.setAttribute('aria-label',cfg.names.join(' und ')+' · '+periodLabel());host.append(svg);
  const add=(tag,attrs,text)=>{const n=document.createElementNS(ns,tag);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n};
  const data=datasets[0],isBar=cfg.type!=='line',long=Number(range.value)>=720,displayPoints=cfg.type==='bars'?datasets.flatMap(d=>d.period?d.points:WeatherLiveCardData.binBars(d,48)):all,minimum=isBar?0:Math.min(...all.map(p=>long?p.value:(p.minimum??p.value))),maximum=Math.max(...displayPoints.map(p=>cfg.type==='bars'||long?p.value:(p.maximum??p.value))),padding=Math.max((maximum-minimum)*.16,.15),[low,high]=bounds(host.closest('[data-sensor-kind]').dataset.sensorKind,isBar?0:minimum-padding,maximum+padding),left=12,right=350,plotWidth=right-left,x=t=>left+(t-data.start)/(data.end-data.start)*plotWidth,clipId='live-mini-clip-'+(++clipNumber);
+ const smoothTemperature=tempBand&&range.value==='720';
+ const windRadius=cfg===config.wind?({'24':2,'168':3,'720':1,'8760':1}[range.value]??0):0;
+ let plottedPoints=datasets.map(dataset=>dataset.points);
+ if(smoothTemperature){
+  const complete=data.points.filter(p=>[p.value,p.minimum,p.maximum].every(Number.isFinite));
+  const smoothed=new Map();
+  for(const segment of WeatherLiveCardData.segments(complete,1)){
+   const curve=WeatherLiveCardData.smoothSegment(segment,1,['value','maximum','minimum']);
+   segment.forEach((point,index)=>smoothed.set(point,curve[index]));
+  }
+  const temperature=data.points.map(p=>smoothed.get(p)??p);
+  plottedPoints=['value','maximum','minimum'].map(field=>temperature.map(p=>({...p,value:p[field]})));
+ }
  const tip=document.createElement('div');tip.className='live-mini-tooltip';tip.hidden=true;host.append(tip);let viewHeight=144;
  const draw=()=>{svg.replaceChildren();tip.hidden=true;const bottom=Math.max(45,viewHeight-(range.value==='8760'?44:33)),y=v=>bottom-(v-low)/(high-low)*(bottom-14);svg.setAttribute('viewBox','0 0 400 '+viewHeight);
- if(cfg===config.wind&&Number(range.value)>=24){
+ if(windRadius||smoothTemperature){
   const note=document.createElementNS(ns,'title');
   note.textContent='Geglätteter Verlauf. Der Tooltip zeigt die Werte vor der Glättung.';
   svg.append(note);
@@ -198,10 +211,10 @@
  add('rect',{x:left,y:14,width:plotWidth,height:bottom-14,class:'plot-background','data-plot-background':''});
  const defs=add('defs',{}),clip=document.createElementNS(ns,'clipPath'),clipRect=document.createElementNS(ns,'rect');clip.id=clipId;for(const[k,v]of Object.entries({x:left,y:14,width:Math.max(0,Math.min(plotWidth,x(data.observed_end??data.end)-left)),height:bottom-14}))clipRect.setAttribute(k,v);clip.append(clipRect);defs.append(clip);
  for(let i=0;i<3;i++){const yy=14+i*(bottom-14)/2;add('line',{x1:left,x2:right,y1:yy,y2:yy,class:'live-mini-grid'});add('text',{x:right+9,y:yy+3,'text-anchor':'start',class:'live-mini-scale'},num(high-(high-low)*i/2))}
- if(tempBand){for(const segment of WeatherLiveCardData.segments(datasets[0].points.filter(p=>Number.isFinite(p.minimum)&&Number.isFinite(p.maximum)),1,false)){if(segment.length<2)continue;const band=(upper,lower,color,name)=>{const coords=segment.map(p=>x(p.time??(p.first+p.last)/2)+','+y(upper(p))).concat([...segment].reverse().map(p=>x(p.time??(p.first+p.last)/2)+','+y(lower(p))));add('polygon',{points:coords.join(' '),fill:color,opacity:.30,'clip-path':'url(#'+clipId+')','data-mini-band':name})};band(p=>p.maximum,p=>p.value,'#ffb347','mean-max');band(p=>p.value,p=>p.minimum,'#8199ed','min-mean')}}
- datasets.forEach((d,index)=>{const color=cfg.colors?.[index]||(index?'var(--mini-second)':'var(--sensor)');let points=d.points;if(cfg.type==='bars'&&!d.period)points=WeatherLiveCardData.binBars(d,48);
+ if(tempBand){for(const segment of WeatherLiveCardData.segments(plottedPoints[0].filter(p=>Number.isFinite(p.minimum)&&Number.isFinite(p.maximum)),1,false)){if(segment.length<2)continue;const band=(upper,lower,color,name)=>{const coords=segment.map(p=>x(p.time??(p.first+p.last)/2)+','+y(upper(p))).concat([...segment].reverse().map(p=>x(p.time??(p.first+p.last)/2)+','+y(lower(p))));add('polygon',{points:coords.join(' '),fill:color,opacity:.30,'clip-path':'url(#'+clipId+')','data-mini-band':name})};band(p=>p.maximum,p=>p.value,'#ffb347','mean-max');band(p=>p.value,p=>p.minimum,'#8199ed','min-mean')}}
+ datasets.forEach((d,index)=>{const color=cfg.colors?.[index]||(index?'var(--mini-second)':'var(--sensor)');let points=plottedPoints[index];if(cfg.type==='bars'&&!d.period)points=WeatherLiveCardData.binBars(d,48);
  if(isBar){for(const p of points){if(!Number.isFinite(p.value))continue;const xx=x(p.time??(p.first+p.last)/2),width=Math.max(1,Math.min(22,(p.last-p.first)/(d.end-d.start)*plotWidth*.78));add('rect',{x:Math.max(left,xx-width/2),y:y(p.value),width,height:Math.max(0,bottom-y(p.value)),rx:1.6,fill:color,opacity:.8,'data-mini-bar':cfg.type})}}
- else {for(const segment of WeatherLiveCardData.segments(points,d.aggregation==='calendar'?1:Math.max(900,d.bucket_seconds*2),cfg.connectGaps&&d.aggregation!=='calendar')){const curve=cfg===config.wind?WeatherLiveCardData.smoothWind(segment,Number(range.value)):segment;const path=curve.map((p,i)=>(i?'L':'M')+x(p.time??(p.first+p.last)/2)+','+y(p.value)).join('');add('path',{d:path,fill:'none',stroke:color,'stroke-width':index?1.8:2.3,'stroke-linejoin':'round','stroke-linecap':'round','data-mini-line':cfg.metrics[index]});if(segment.length===1)add('circle',{cx:x(segment[0].time??segment[0].first),cy:y(segment[0].value),r:2.3,fill:color})}}
+ else {for(const segment of WeatherLiveCardData.segments(points,d.aggregation==='calendar'?1:Math.max(900,d.bucket_seconds*2),cfg.connectGaps&&d.aggregation!=='calendar')){const curve=WeatherLiveCardData.smoothSegment(segment,windRadius);const path=curve.map((p,i)=>(i?'L':'M')+x(p.time??(p.first+p.last)/2)+','+y(p.value)).join('');add('path',{d:path,fill:'none',stroke:color,'stroke-width':index?1.8:2.3,'stroke-linejoin':'round','stroke-linecap':'round','data-mini-line':cfg.metrics[index]});if(segment.length===1)add('circle',{cx:x(segment[0].time??segment[0].first),cy:y(segment[0].value),r:2.3,fill:color})}}
  });
  for(const node of svg.querySelectorAll('[data-mini-bar],[data-mini-line],circle'))node.setAttribute('clip-path','url(#'+clipId+')');
  renderTimeAxis(add,data,left,right,bottom);

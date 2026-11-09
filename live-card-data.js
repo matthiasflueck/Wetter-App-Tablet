@@ -21,17 +21,20 @@
  }
  function segments(points,gap=900,connectGaps=false){if(connectGaps){const valid=(points||[]).filter(p=>Number.isFinite(p.value));return valid.length?[valid]:[]}const result=[];let group=[],previous=null;for(const p of points||[]){if(!Number.isFinite(p.value)){if(group.length)result.push(group);group=[];previous=null;continue}if(previous!==null&&p.first-previous>gap){if(group.length)result.push(group);group=[]}group.push(p);previous=p.last}if(group.length)result.push(group);return result}
  // Apply a centred, weighted mean within each continuous segment.
- function smoothWind(points,hours){
-  if(hours<24||points.length<3)return points;
-  const radius=hours<=168?2:1;
+ function smoothSegment(points,radius,fields=['value']){
+  if(!radius||points.length<3)return points;
   return points.map((point,index)=>{
-   let total=0,weight=0;
-   for(let i=Math.max(0,index-radius);i<=Math.min(points.length-1,index+radius);i++){
-    const factor=radius+1-Math.abs(index-i);
-    total+=points[i].value*factor;
-    weight+=factor;
+   const smoothed={...point};
+   for(const field of fields){
+    let total=0,weight=0;
+    for(let i=Math.max(0,index-radius);i<=Math.min(points.length-1,index+radius);i++){
+     const factor=radius+1-Math.abs(index-i);
+     total+=points[i][field]*factor;
+     weight+=factor;
+    }
+    smoothed[field]=total/weight;
    }
-   return {...point,value:total/weight};
+   return smoothed;
   });
  }
  function midnight(now){const parts=t=>Object.fromEntries(swissDateTime.formatToParts(new Date(t*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));const d=parts(now),wall=Date.UTC(d.year,d.month-1,d.day)/1000;let utc=wall;for(let i=0;i<3;i++){const q=parts(utc),local=Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second)/1000;utc-=local-wall}return utc}
@@ -96,7 +99,7 @@
    sensor.observation?[sensor.observation.measured_at,entries(sensor.observation.values),entries(sensor.observation.value_times),sensor.observation.battery_low]:null
   ]).sort((a,b)=>a[0].localeCompare(b[0]))]);
  }
- const api={liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,smoothWind,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
