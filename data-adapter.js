@@ -24,6 +24,8 @@
   return {metric,resolution,label:metrics[metric][0],unit:metrics[metric][1],start,end,available,daily,periods,summary:{days_requested:daily.length,days_with_values:valid.length,day_presence_percent:Math.round(1000*valid.length/daily.length)/10,suspicious_values:suspicious,samples:daily.reduce((s,r)=>s+r.samples,0),valid_samples:daily.reduce((s,r)=>s+r.valid_samples,0),missing_days:daily.filter(r=>!r.samples).length,days_without_values:daily.length-valid.length,minimum:min,maximum:max}};
  }
  function seedPreferences(storage,settings,shared={}){
+  // The unified dialog treats data downloads and preference sync as independent choices.
+  if(storage.getItem('wetter.syncSelection')!==null)return;
   // Once separately synchronized, legacy publications cannot overwrite shared preferences.
   const separate=storage.getItem('wetter.preferenceSync')!==null;
   const localDefaults=new Set(['diagramZoom','diagramZooms','chartHeights']);
