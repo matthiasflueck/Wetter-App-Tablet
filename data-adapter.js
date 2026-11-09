@@ -24,11 +24,15 @@
   return {metric,resolution,label:metrics[metric][0],unit:metrics[metric][1],start,end,available,daily,periods,summary:{days_requested:daily.length,days_with_values:valid.length,day_presence_percent:Math.round(1000*valid.length/daily.length)/10,suspicious_values:suspicious,samples:daily.reduce((s,r)=>s+r.samples,0),valid_samples:daily.reduce((s,r)=>s+r.valid_samples,0),missing_days:daily.filter(r=>!r.samples).length,days_without_values:daily.length-valid.length,minimum:min,maximum:max}};
  }
  function seedPreferences(storage,settings,shared={}){
-  // Device preferences are seeded once; shared brand text and thresholds follow the publication.
+  // Once separately synchronized, legacy publications cannot overwrite shared preferences.
+  const separate=storage.getItem('wetter.preferenceSync')!==null;
+  const localDefaults=new Set(['diagramZoom','diagramZooms','chartHeights']);
   for(const key of ['preferences','diagramZoom','diagramZooms','timelineValues','timelineFog','yAxes','chartOrder','chartHeights','temperatureNormals','annualNorm','comparisonNorm','thunder','liveDisplay']){
+   if(separate&&!localDefaults.has(key))continue;
    const name='wetter.'+key;if(storage.getItem(name)!==null||settings[key]===undefined)continue;
    storage.setItem(name,['annualNorm','comparisonNorm'].includes(key)?settings[key]:JSON.stringify(settings[key]));
   }
+  if(separate)return;
   if(settings.thunder!==undefined)storage.setItem('wetter.thunder',JSON.stringify(settings.thunder));
   const subtitle=shared.preferences?.headerSubtitle??settings.preferences?.headerSubtitle;
   if(typeof subtitle==='string'){let preferences={};try{preferences=JSON.parse(storage.getItem('wetter.preferences')||'{}')}catch(e){}preferences.headerSubtitle=subtitle;storage.setItem('wetter.preferences',JSON.stringify(preferences))}

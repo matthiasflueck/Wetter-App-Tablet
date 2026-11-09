@@ -3,9 +3,9 @@
   const nativeFetch=window.fetch.bind(window);
   let current=null,token=null,expires=0,busy=false,liveConnection=null;
   const message=text=>status.textContent=text;
-  const authorizedFetch=async url=>{
+  const authorizedFetch=async (url,options={})=>{
     if(!token||Date.now()>=expires)throw Error('Bitte erneut mit Google anmelden.');
-    const response=await nativeFetch(url,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const response=await nativeFetch(url,{...options,headers:{...options.headers,Authorization:'Bearer '+token},cache:'no-store'});
     if(response.status===401)throw Error('Google-Anmeldung abgelaufen. Bitte erneut verbinden.');
     if(!response.ok)throw Error('Google-Download fehlgeschlagen (HTTP '+response.status+').');return response;
   };
@@ -80,12 +80,24 @@
   if(!window.WEATHER_WEB_CLIENT_ID){connect.disabled=true;document.getElementById('tabletSetup').hidden=false;return}
   function googleReady(){
     connect.disabled=false;
+    let pending=null;
+    const fail=error=>{const request=pending;pending=null;request?.reject(error)};
     const client=google.accounts.oauth2.initTokenClient({client_id:window.WEATHER_WEB_CLIENT_ID,scope:'https://www.googleapis.com/auth/drive.appdata',callback:result=>{
-      if(result.error){message('Google-Anmeldung wurde nicht abgeschlossen.');return}
-      if(!google.accounts.oauth2.hasGrantedAllScopes(result,'https://www.googleapis.com/auth/drive.appdata')){message('App-Daten-Zugriff wurde nicht freigegeben.');return}
-      token=result.access_token;expires=Date.now()+Number(result.expires_in)*1000;download();
-    },error_callback:()=>message('Google-Anmeldefenster wurde geschlossen oder blockiert.')});
-    connect.onclick=()=>client.requestAccessToken();
+      if(result.error){fail(Error('Google-Anmeldung wurde nicht abgeschlossen.'));return}
+      if(!google.accounts.oauth2.hasGrantedAllScopes(result,'https://www.googleapis.com/auth/drive.appdata')){fail(Error('App-Daten-Zugriff wurde nicht freigegeben.'));return}
+      token=result.access_token;expires=Date.now()+Number(result.expires_in)*1000;
+      const request=pending;pending=null;request?.resolve();
+    },error_callback:()=>fail(Error('Google-Anmeldefenster wurde geschlossen oder blockiert.'))});
+    const authorize=()=>{
+      if(token&&Date.now()<expires-10000)return Promise.resolve();
+      if(pending)return Promise.reject(Error('Eine Google-Anmeldung läuft bereits.'));
+      return new Promise((resolve,reject)=>{
+        pending={resolve,reject};
+        try{client.requestAccessToken()}catch(error){fail(error)}
+      });
+    };
+    connect.onclick=async()=>{try{await authorize();await download()}catch(error){message(error.message)}};
+    WeatherPreferenceSync.attach(async()=>{await authorize();return WeatherPreferenceSync.driveTransport(authorizedFetch)});
   }
   const googleScript=document.createElement('script');googleScript.src='https://accounts.google.com/gsi/client';googleScript.async=true;googleScript.onload=googleReady;googleScript.onerror=()=>message(status.textContent+' · Für einen neuen Download bitte eine Internetverbindung herstellen und die App erneut öffnen.');document.head.append(googleScript);
 })().catch(error=>{document.getElementById('tabletStatus').textContent='Die Tablet-App konnte nicht vollständig geöffnet werden: '+error.message+' Gespeicherte Offline-Daten wurden nicht gelöscht.'});
