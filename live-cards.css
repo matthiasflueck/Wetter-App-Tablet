@@ -148,7 +148,7 @@ body.focus-mode #view-live .live-temperature-upper { flex: 0 0 auto; }
   height: 100%;
   max-height: none;
 }
-.live-display-controls { display: flex; align-items: center; }
+.live-display-controls { display: flex; align-items: center; gap: 8px; }
 .live-clock-controls {
   display: flex;
   flex: 1 0 100%;
@@ -189,24 +189,17 @@ body.focus-mode #view-live .live-display-controls { grid-column: 3; grid-row: 1;
 #liveScaleToggle { padding-inline: 8px; white-space: nowrap; }
 #view-live .live-temperature-upper .live-primary strong { white-space: nowrap; }
 
-/* Give the clock its own centred column and place the scale control beside it. */
+/* Keep the clock in its own centred column. */
 .live-clock-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
 }
 .live-clock-controls > .live-dashboard-clock { grid-column: 2; grid-row: 1; }
-.live-clock-controls > #liveScaleToggle { grid-column: 3; grid-row: 1; justify-self: start; }
 body.focus-mode #view-live > .live-dashboard-toolbar {
   grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
   padding-right: 0;
 }
 body.focus-mode #view-live .live-clock-controls { display: contents; }
-body.focus-mode #view-live #liveScaleToggle {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: start;
-  margin-left: 6px;
-}
 body.focus-mode #view-live .live-display-controls {
   justify-self: end;
   margin-right: 140px;
