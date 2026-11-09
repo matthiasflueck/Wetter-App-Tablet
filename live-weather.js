@@ -39,14 +39,14 @@
  if(kind==='wind')readings.replaceChildren(windRose(sensor.observation?.values));
  const stat=(key,label,unit)=>{const box=node('div',undefined,'live-derived-stat');box.append(node('span',label));const value=node('strong','–');value.dataset.liveStat=key;value.dataset.unit=unit;box.append(value);return box};
  if(kind==='lightning'){readings.replaceChildren();readings.classList.add('live-storm-values');for(const [key,label,unit]of [['stormCount','Blitze',''],['stormLast','Letzter Blitz','km'],['stormNearest','Geringste Distanz','km']]){const box=stat(key,label,unit);box.classList.add('live-reading');if(key==='stormCount')box.classList.add('live-primary');readings.append(box)}}
- if(kind==='rain'){readings.replaceChildren();for(const [i,[key,label]] of [['rain10','Letzte 10 min'],['rain1','Letzte 1 h'],['rain24','Letzte 24 h']].entries()){const box=stat(key,label,'mm');box.classList.add('live-reading');if(key==='rain24')box.classList.add('live-primary');readings.append(box)}readings.classList.add('live-rain-values')}
+ if(kind==='rain'){readings.replaceChildren();for(const [key,label] of [['rain24','Letzte 24 h'],['rain10','Letzte 10 min'],['rain1','Letzte 1 h']]){const box=stat(key,label,'mm');box.classList.add('live-reading');if(key==='rain24')box.classList.add('live-primary');readings.append(box)}readings.classList.add('live-rain-values')}
  const extras=node('div',undefined,'live-derived');
  if(kind==='thermohygro')extras.append(stat('dayMax','Max','°C'),stat('dayMin','Min','°C'));
  if(kind==='wind'){extras.append(readings.querySelector('.wind-current-gust'),stat('gustMax','Heute Max','km/h'),stat('gustMin','Heute Min','km/h'))}
  if(kind==='solar')extras.append(stat('solarMax','Max','W/m²'));
  if(kind==='pressure')extras.append(stat('pressure24','Änderung 24 h','hPa'),stat('pressure1','Änderung 1 h','hPa'));
  if(extras.children.length){extras.title='Max/Min und Druckänderungen im gewählten Anzeigezeitraum.';if(kind==='wind')readings.querySelector('.live-wind-display').append(extras);else readings.append(extras)}
- const badge=node('span','', 'live-badge');panel.querySelector('.live-status-heading').after(badge);const instrumentLayout={thermohygro:'live-temperature-upper',solar:'live-solar-upper',pressure:'live-pressure-upper'}[kind];
+ const badge=node('span','', 'live-badge');panel.querySelector('.live-status-heading').after(badge);const instrumentLayout={thermohygro:'live-temperature-upper',solar:'live-solar-upper',pressure:'live-pressure-upper',rain:'live-rain-upper'}[kind];
  if(instrumentLayout){
   const upper=node('div',undefined,instrumentLayout);
   upper.append(head,readings);card.append(upper);

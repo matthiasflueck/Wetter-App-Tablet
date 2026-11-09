@@ -10,7 +10,7 @@
  function orderControls(){const cards=[...grid.querySelectorAll('[data-sensor-key]')];cards.forEach((card,index)=>{let controls=card.querySelector('.live-order-controls');if(!controls){controls=document.createElement('div');controls.className='live-order-controls';controls.setAttribute('role','group');controls.setAttribute('aria-label','Reihenfolge – '+card.querySelector('h3').textContent);for(const [step,symbol,label]of [[-1,'↑','nach vorne'],[1,'↓','nach hinten']]){const button=document.createElement('button');button.type='button';button.textContent=symbol;button.setAttribute('aria-label',card.querySelector('h3').textContent+' '+label);button.onclick=()=>{const neighbor=step<0?card.previousElementSibling:card.nextElementSibling;if(!neighbor)return;if(step<0)grid.insertBefore(card,neighbor);else grid.insertBefore(neighbor,card);display.order=[...grid.querySelectorAll('[data-sensor-key]')].map(c=>c.dataset.sensorKey);saveDisplay();orderControls()};controls.append(button)}card.prepend(controls)}controls.hidden=!arranging;controls.children[0].disabled=index===0;controls.children[1].disabled=index===cards.length-1})}
  const scaleSpecs={
   thermometer:['Thermometer','°C',-20,40],thermohygro:['Temperaturdiagramm','°C',-20,40],
-  rain:['Niederschlag','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruckdiagramm','hPa',920,1040],barometer:['Barometer','hPa',920,1000],
+  rain:['Niederschlagsdiagramm','mm',0,100],rainTank:['Niederschlag · Wasserbehälter','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruckdiagramm','hPa',920,1040],barometer:['Barometer','hPa',920,1000],
   solar:['Solarstrahlungsdiagramm','W/m²',0,1200],solarMeter:['Solarstrahlung · Säule','W/m²',0,1200],lightning:['Gewitter · Anzahl','Blitze',0,1000],distance:['Gewitter · Entfernung','km',0,40]
  };
  const scaleDefaults=()=>Object.fromEntries(Object.entries(scaleSpecs).map(([key,spec])=>[key,spec.slice(2)]));
@@ -91,7 +91,7 @@
    const gradient=add('linearGradient',{id,x1:0,y1:1,x2:0,y2:0},undefined,defs);
    add('stop',{offset:0,'stop-color':'var(--sensor)'},undefined,gradient);
    add('stop',{offset:1,'stop-color':'#ffe49c'},undefined,gradient);
-   add('rect',{x:2,y:'8%',width:12,height:'84%',rx:6,fill:'var(--bg)',stroke:'var(--line)'});
+   add('rect',{x:2,y:'8%',width:12,height:'84%',rx:6,fill:'var(--bg)',stroke:'var(--muted)','stroke-width':1.25});
    if(Number.isFinite(value)){
     const fill=Math.max(0,Math.min(1,(value-low)/(high-low)))*84;
     if(fill>0)add('rect',{x:3,y:(92-fill)+'%',width:10,height:fill+'%',rx:5,fill:'url(#'+id+')'});
@@ -104,6 +104,55 @@
    meter.replaceChildren(svg);
   }
  }
+ function rainTank(card){
+  const upper=card.querySelector('.live-rain-upper');
+  const reading=upper.querySelector('[data-live-stat=rain24]');
+  const value=reading.dataset.value===undefined?null:Number(reading.dataset.value);
+  let meter=upper.querySelector('.live-rain-tank');
+  if(!meter){
+   meter=document.createElement('div');
+   meter.className='live-rain-tank';
+   upper.prepend(meter);
+  }
+  const automaticMax={'1':10,'2':15,'6':25,'24':50,'168':100,'720':200,'8760':1000}[range.value]??100;
+  const [low,high]=bounds('rainTank',0,Math.max(automaticMax,Math.ceil(value/automaticMax)*automaticMax));
+  const top=17,bottom=115,level=bottom-(bottom-top)*Math.max(0,Math.min(1,(value-low)/(high-low)));
+  const id='rain-water-'+(++clipNumber);
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 94 132');
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label','Regenmenge · '+(value===null?'kein Messwert':num(value)+' mm')+' · Skala '+num(low)+' bis '+num(high)+' mm');
+  svg.innerHTML=`
+   <defs>
+    <linearGradient id="${id}">
+     <stop stop-color="var(--sensor)" stop-opacity=".62"/>
+     <stop offset=".55" stop-color="var(--sensor)"/>
+     <stop offset="1" stop-color="var(--sensor)" stop-opacity=".72"/>
+    </linearGradient>
+   </defs>
+   <path d="M7 17H48V115A20.5 7 0 0 1 7 115Z" fill="var(--bg)"/>
+   ${value!==null&&level<bottom?`<path d="M7 ${level}H48V115A20.5 7 0 0 1 7 115Z" fill="url(#${id})"/>
+   <ellipse cx="27.5" cy="${level}" rx="20.5" ry="7" fill="var(--sensor)" stroke="var(--panel)" stroke-opacity=".45"/>`:''}
+   <path d="M7 17V115A20.5 7 0 0 0 48 115V17" fill="none" stroke="var(--muted)" stroke-width="1.25"/>
+   <ellipse cx="27.5" cy="17" rx="20.5" ry="7" fill="none" stroke="var(--muted)" stroke-width="1.25"/>
+   <path d="M12 26V109" stroke="var(--text)" stroke-opacity=".22" stroke-linecap="round"/>
+  `;
+  for(let i=0;i<=8;i++){
+   const y=bottom-(bottom-top)*i/8,major=i%2===0;
+   const tick=document.createElementNS(svg.namespaceURI,'line');
+   for(const [key,v] of Object.entries({x1:53,x2:major?60:57,y1:y,y2:y,stroke:'var(--muted)'}))tick.setAttribute(key,v);
+   svg.append(tick);
+   if(major){
+    const label=document.createElementNS(svg.namespaceURI,'text');
+    label.setAttribute('x',63);label.setAttribute('y',y+3);
+    label.setAttribute('fill','var(--muted)');label.setAttribute('font-size',10);
+    label.textContent=num(low+(high-low)*i/8);
+    svg.append(label);
+   }
+  }
+  meter.replaceChildren(svg);
+ }
+ function rainTanks(){for(const card of grid.querySelectorAll('[data-sensor-kind=rain]'))rainTank(card)}
  function barometer(){
   for(const card of grid.querySelectorAll('[data-sensor-kind=pressure]')){
    const upper=card.querySelector('.live-pressure-upper');
@@ -151,7 +200,7 @@
    meter.replaceChildren(svg);
   }
  }
- function redrawScales(){thermometer();solarMeter();barometer();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
+ function redrawScales(){thermometer();solarMeter();barometer();rainTanks();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
  const scaleToggle=$('liveScaleToggle'),scaleFields=$('liveScaleFields'),scaleStatus=$('liveScaleStatus');
  function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent=customScales?'↕ Eigene':'↕ Auto';scaleToggle.title=customScales?'Eigene Diagrammskalen':'Automatische Diagrammskalen';scaleToggle.setAttribute('aria-label',scaleToggle.title)}
  function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales}));return true}catch(e){return false}}
@@ -163,7 +212,7 @@
  $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}scales=next;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawScales()};
  $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawScales()};
  scaleToggle.onclick=()=>{customScales=!customScales;saveScales();syncScaleToggle();redrawScales()};syncScaleToggle();
- function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter();barometer()}
+ function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter();barometer();rainTanks()}
  $('liveArrange').onclick=()=>{arranging=!arranging;$('liveArrange').setAttribute('aria-pressed',String(arranging));orderControls()};
  for(const [kind,[label,color]]of Object.entries(defaults)){const field=document.createElement('label'),input=document.createElement('input');field.append(document.createTextNode(label));input.type='color';input.value=display.colors[kind]||color;input.dataset.liveColor=kind;input.setAttribute('aria-label','Kachelfarbe '+label);input.oninput=()=>{display.colors[kind]=input.value;saveDisplay();applyDisplay();$('liveAppearanceStatus').textContent='Kachelfarbe gespeichert.'};field.append(input);$('liveColorSettings').append(field)}
  $('liveColorsDefault').onclick=()=>{display.colors={};saveDisplay();for(const input of $('liveColorSettings').querySelectorAll('input'))input.value=defaults[input.dataset.liveColor][1];applyDisplay();$('liveAppearanceStatus').textContent='Standardfarben wiederhergestellt.'};
@@ -177,7 +226,7 @@
  const beginningLabel=()=>new Date(windowFor(Date.now()/1000).start*1000).toLocaleDateString('de-CH',{timeZone:'Europe/Zurich',day:'2-digit',month:'2-digit'});
  syncRangeMode();
 
- function periodLabels(reset=true){const label=periodLabel(),hours=Number(range.value);for(const card of grid.querySelectorAll('[data-sensor-key]')){for(const [key,prefix]of [['dayMax','Max · '],['dayMin','Min · '],['gustMax','Max · '],['gustMin','Min · '],['solarMax','Max · '],['pressure24','Änderung '],['rain24','Letzte ']]){const field=card.querySelector('[data-live-stat="'+key+'"]');if(field){field.parentElement.querySelector('span').textContent=calendarMode()&&['rain24','pressure24'].includes(key)?(key==='rain24'?'Seit ':'Änderung seit ')+beginningLabel():prefix+label;if(reset)field.textContent='–'}}for(const key of ['pressure1','rain1']){const field=card.querySelector('[data-live-stat="'+key+'"]');if(field)field.parentElement.hidden=hours===1}card.querySelector('.live-rain-values')?.classList.toggle('live-rain-two-values',hours===1);for(const extra of card.querySelectorAll('.live-derived'))extra.title='Max/Min im gewählten Anzeigezeitraum · '+label}}
+ function periodLabels(reset=true){const label=periodLabel(),hours=Number(range.value);for(const card of grid.querySelectorAll('[data-sensor-key]')){for(const [key,prefix]of [['dayMax','Max · '],['dayMin','Min · '],['gustMax','Max · '],['gustMin','Min · '],['solarMax','Max · '],['pressure24','Änderung '],['rain24','Letzte ']]){const field=card.querySelector('[data-live-stat="'+key+'"]');if(field){field.parentElement.querySelector('span').textContent=calendarMode()&&['rain24','pressure24'].includes(key)?(key==='rain24'?'Seit ':'Änderung seit ')+beginningLabel():prefix+label;if(reset){field.textContent='–';delete field.dataset.value}}}for(const key of ['pressure1','rain1']){const field=card.querySelector('[data-live-stat="'+key+'"]');if(field)field.parentElement.hidden=hours===1}card.querySelector('.live-rain-values')?.classList.toggle('live-rain-two-values',hours===1);for(const extra of card.querySelectorAll('.live-derived'))extra.title='Max/Min im gewählten Anzeigezeitraum · '+label}if(reset)rainTanks()}
  const num=v=>v.toLocaleString('de-CH',{maximumFractionDigits:1}),stamp=t=>new Date(t*1000).toLocaleString('de-CH',{timeZone:'Europe/Zurich',...(Number(range.value)>=720?{day:'2-digit',month:'2-digit',...(range.value==='8760'?{year:'numeric'}:{})}:{}),hour:'2-digit',minute:'2-digit'});
  function message(host,text){host.setAttribute('aria-busy','false');host.replaceChildren();const p=document.createElement('p');p.className='live-mini-message';p.textContent=text;host.append(p)}
  function refreshError(host,text){host.setAttribute('aria-busy','false');if(!host.querySelector('svg')){message(host,text);return}let note=host.querySelector('[data-load-error]');if(!note){note=document.createElement('small');note.className='live-mini-warning';note.dataset.loadError='';host.append(note)}note.textContent='Verlauf nicht aktualisiert';note.title=text+' · Bisheriger Verlauf bleibt sichtbar.'}
@@ -253,7 +302,7 @@
  };draw();if(typeof ResizeObserver!=='undefined'){const observer=new ResizeObserver(()=>{const box=svg.getBoundingClientRect();if(!box.width||!box.height)return;const next=box.height/box.width*400;if(Math.abs(next-height)>.1){height=next;draw()}});plotObservers.add(observer);observer.observe(svg)}
  }
  async function statistics(catalog,id,signal,now=Date.now()/1000,selectedCard=null){const start=windowFor(now).start,hours=(now-start)/3600,label=periodLabel();await Promise.all([...grid.querySelectorAll('[data-sensor-key]')].filter(card=>!selectedCard||card===selectedCard).map(async card=>{const sensor=snapshot.sensors.find(s=>s.key===card.dataset.sensorKey);if(!sensor)return;const kind=sensor.kind;
- const put=(key,value,detail='',integer=false)=>{if(id!==revision||!card.isConnected)return;if(key.startsWith('pressure')&&Number.isFinite(value))value=Math.round(value*10)/10;const el=card.querySelector('[data-live-stat="'+key+'"]');if(!el)return;el.textContent=Number.isFinite(value)?(key.startsWith('pressure')?(value>0?'+':''):'')+value.toLocaleString('de-CH',{maximumFractionDigits:integer?0:1}):'–';if(Number.isFinite(value)){const unit=document.createElement('small');unit.textContent=' '+el.dataset.unit;el.append(unit);if(key.startsWith('pressure'))el.append(document.createTextNode(value>0?' ↑':value<0?' ↓':' →'))}if(key.startsWith('rain')){const lengths=[...card.querySelectorAll('[data-live-stat^=rain]')].map(n=>(n.childNodes[0]?.textContent||'').length);card.style.setProperty('--rain-count-length',Math.max(1,...lengths))}el.title=detail||'Kein ausreichend gesicherter Ausgangswert im NAS-Archiv.'};
+ const put=(key,value,detail='',integer=false)=>{if(id!==revision||!card.isConnected)return;if(key.startsWith('pressure')&&Number.isFinite(value))value=Math.round(value*10)/10;const el=card.querySelector('[data-live-stat="'+key+'"]');if(!el)return;el.textContent=Number.isFinite(value)?(key.startsWith('pressure')?(value>0?'+':''):'')+value.toLocaleString('de-CH',{maximumFractionDigits:integer?0:1}):'–';if(Number.isFinite(value)){const unit=document.createElement('small');unit.textContent=' '+el.dataset.unit;el.append(unit);if(key.startsWith('pressure'))el.append(document.createTextNode(value>0?' ↑':value<0?' ↓':' →'))}if(key==='rain24'){if(Number.isFinite(value))el.dataset.value=String(value);else delete el.dataset.value;rainTank(card)}if(key.startsWith('rain')){const lengths=[...card.querySelectorAll('[data-live-stat^=rain]')].map(n=>(n.childNodes[0]?.textContent||'').length);card.style.setProperty('--rain-count-length',Math.max(1,...lengths))}el.title=detail||'Kein ausreichend gesicherter Ausgangswert im NAS-Archiv.'};
  const series=async(metric,start,end,extra={})=>{const loaded=cached.get(sensor.key),reuse=loaded?.datasets.find((d,i)=>loaded.cfg.metrics[i]===metric);if(extra.aggregation==='rain_increment'&&reuse&&Math.abs(reuse.start-start)<15&&Math.abs((reuse.observed_end??reuse.end)-end)<15)return reuse;const spec=catalog.series.find(s=>s.sensor===sensor.key&&s.metric===metric);if(!spec)return null;return WeatherNasArchive.request('/series',{provider:spec.provider,sensor:spec.sensor,metric,unit:spec.unit,start,end,...extra},{signal})};
  try{if(['thermohygro','wind','solar'].includes(kind)){const metric={thermohygro:'temperature_c',wind:'gust_kmh',solar:'solar_wm2'}[kind],data=cached.get(sensor.key)?.datasets.find((d,i)=>cached.get(sensor.key).cfg.metrics[i]===metric)||await series(metric,start,now),values=data&&WeatherLiveCardData.extrema(data),spec=catalog.series.find(s=>s.sensor===sensor.key&&s.metric===metric),partial=spec?.first>start+120,detail='Anzeigezeitraum: '+label+(partial?' · Aufzeichnung erst ab '+new Date(spec.first*1000).toLocaleString('de-CH'):''),keys={thermohygro:['dayMax','dayMin'],wind:['gustMax','gustMin'],solar:['solarMax']}[kind];put(keys[0],values?.max,detail,kind==='solar');if(keys[1])put(keys[1],values?.min,detail)}
  if(kind==='pressure'){const current=sensor.observation?.values.pressure_hpa,end=sensor.observation?.value_times?.pressure_hpa??sensor.observation?.measured_at;await Promise.all((hours===1?[hours]:[hours,1]).map(async comparisonHours=>{if(!Number.isFinite(end))return;const target=comparisonHours===hours&&calendarMode()?start:end-comparisonHours*3600,data=await series('pressure_hpa',target-180,target+180),base=data&&WeatherLiveCardData.baseline(data,target);const valid=Number.isFinite(current)&&Number.isFinite(base);put(comparisonHours===hours?'pressure24':'pressure1',valid?current-base:null,valid?'Änderung gegenüber '+new Date(target*1000).toLocaleString('de-CH')+' · Ausgangswert innerhalb ±3 Minuten.':'Noch kein passender Archivwert von vor '+comparisonHours+' Stunden vorhanden. Die Änderung erscheint automatisch, sobald ein Vergleichswert verfügbar ist.')}))}
