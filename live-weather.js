@@ -2,6 +2,8 @@
 (()=>{
  const root=document.getElementById('view-live');if(!root)return;
  const container=document.getElementById('liveSensors'),status=document.getElementById('liveStatus'),refresh=document.getElementById('liveRefresh');let state=null,busy=false,request=null,generation=0,nextPoll=null,clockTimer=null;
+ const station=document.getElementById('liveStation');
+ try{station.value=localStorage.getItem('wetter.liveStation')||'';if(station.selectedIndex<0)station.selectedIndex=0}catch(error){}
  const active=()=>location.hash==='#live'&&!document.hidden;
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
  const fields={solar:[['solar_wm2','Solarstrahlung','W/m²'],['uv_index','UV-Index','']],lightning:[['lightning_count','Blitzzähler',''],['lightning_distance_km','Entfernung letzter Blitz','km']],thermohygro:[['temperature_c','Temperatur','°C'],['humidity_percent','Luftfeuchtigkeit','%']],rain:[['rain_total_mm','Regenzähler','mm']],wind:[['wind_kmh','Windgeschwindigkeit','km/h'],['gust_kmh','Böe','km/h'],['wind_direction_degrees','Windrichtung','°']],pressure:[['pressure_hpa','Luftdruck','hPa']]};
@@ -26,16 +28,17 @@
  const main=node('div',undefined,'live-wind-main'),current=node('div',undefined,'wind-current-gust'),gustValue=node('strong',Number.isFinite(gust)?gust.toLocaleString('de-CH',{maximumFractionDigits:1}):'–');gustValue.append(node('small',' km/h'));current.append(node('span','Böe aktuell'),gustValue);main.append(dial,current);wrap.append(main);return wrap
  }
  function render(){const previousCards=new Map([...container.children].filter(card=>card.dataset.sensorKey).map(card=>[card.dataset.sensorKey,card]));const opened=new Set([...container.querySelectorAll('details[open]')].map(e=>e.closest('[data-sensor-key]').dataset.sensorKey));container.replaceChildren();for(const sensor of state.sensors||[]){
- const kind=sensor.kind||'thermohygro',[title,symbol]=design[kind],card=node('section',undefined,'chart live-sensor');card.dataset.sensorKey=sensor.key;card.dataset.sensorKind=kind;
+ const kind=sensor.kind||'thermohygro',[defaultTitle,symbol]=design[kind],remote=sensor.provider==='meteoswiss',title=remote&&kind==='solar'?'Solarstrahlung':defaultTitle,card=node('section',undefined,'chart live-sensor');card.dataset.sensorKey=sensor.key;card.dataset.sensorKind=kind;
  const head=node('div',undefined,'live-sensor-heading'),identity=node('div',undefined,'live-identity'),emblem=node('span',undefined,'live-icon'),titles=node('div');emblem.append(icon(symbol));titles.append(node('h3',title));identity.append(emblem,titles);
  const info=node('details',undefined,'live-info');info.open=opened.has(sensor.key);const summary=node('summary','i');summary.setAttribute('aria-label','Informationen zu '+title);const panel=node('div',undefined,'live-info-panel');panel.append(node('h4',sensor.name));const details=node('dl',undefined,'live-meta');
- for(const [label,value,marker] of [['Messzeitpunkt',date(sensor.observation?.measured_at)],['Datenalter','','age'],['Zuletzt am Server gesehen',date(sensor.observation?.last_seen_at),'lastSeen'],['Batterie',sensor.observation?.battery_low===true?'Batterie schwach':sensor.observation?.battery_low===false?'Keine Batteriewarnung':'Unbekannt'],['Quelle',sensor.provider==='ecowitt'?'Ecowitt':'TFA WeatherHub · Mobile Alerts']]){const field=node('dd',value);if(marker)field.dataset[marker]='';details.append(node('dt',label),field)}panel.append(details,node('p','Messwertstatus:','live-status-heading'));
+ for(const [label,value,marker] of [['Messzeitpunkt',date(sensor.observation?.measured_at)],['Datenalter','','age'],['Zuletzt am Server gesehen',date(sensor.observation?.last_seen_at),'lastSeen'],['Batterie',sensor.observation?.battery_low===true?'Batterie schwach':sensor.observation?.battery_low===false?'Keine Batteriewarnung':'Unbekannt'],['Quelle',sensor.provider==='meteoswiss'?'MeteoSchweiz · SwissMetNet':sensor.provider==='ecowitt'?'Ecowitt':'TFA WeatherHub · Mobile Alerts']]){const field=node('dd',value);if(remote&&['Batterie','Zuletzt am Server gesehen'].includes(label))continue;if(marker)field.dataset[marker]='';details.append(node('dt',label),field)}panel.append(details,node('p','Messwertstatus:','live-status-heading'));
  if(kind==='lightning')panel.append(node('p','Letztes Blitzereignis: '+date(sensor.observation?.values.lightning_event_at)));
  if(kind==='thermohygro')panel.append(node('p','Gefühlt: Apparent Temperature nach Steadman für Schattenbedingungen, berechnet aus Temperatur, Feuchte und Wind Mittel (Modellannahme: 10 m Windhöhe). Bei fehlenden, veralteten oder zeitlich unpassenden Messungen wird kein Wert angezeigt.'));
- if(kind==='rain')panel.append(node('p','Gleitende Regenmenge im gewählten Anzeigezeitraum, zusätzlich 1 Stunde und 10 Minuten. Berechnet aus den Zählerzunahmen im NAS-Archiv.'));
+ if(kind==='rain'&&sensor.provider==='meteoswiss')panel.append(node('p','MeteoSchweiz · Intervallmengen. Offizielle Regen-Tageswerte gelten von 06:00 bis 06:00 UTC. Monatsverläufe basieren auf diesen Tageswerten.'));
+ if(kind==='rain'&&sensor.provider!=='meteoswiss')panel.append(node('p','Gleitende Regenmenge im gewählten Anzeigezeitraum, zusätzlich 1 Stunde und 10 Minuten. Berechnet aus den Zählerzunahmen im NAS-Archiv.'));
  if(sensor.error)panel.append(node('p',sensor.error+(sensor.observation?' Der letzte bekannte Messwert bleibt angezeigt.':''),'live-error'));
  const next=node('p','', 'live-refresh-note');next.dataset.next='';panel.append(next);info.append(summary,panel);head.append(identity,info);
- const readings=node('div',undefined,'live-values');for(const [index,[key,label,unit]] of fields[kind].entries()){const box=node('div',undefined,'live-reading'),value=sensor.observation?.values[key],strong=node('strong',Number.isFinite(value)?value.toLocaleString('de-CH',{maximumFractionDigits:['solar','pressure'].includes(kind)?0:1}):'–');strong.append(node('small',' '+unit));if(key==='wind_direction_degrees'&&Number.isFinite(value))strong.append(node('small',' · '+directions[Math.round(value/22.5)%16]));box.append(node('span',label,'live-reading-label'),strong);if(index===0)box.classList.add('live-primary');readings.append(box)}
+ const readings=node('div',undefined,'live-values');for(const [index,[key,label,unit]] of fields[kind].filter(([key])=>!remote||key!=='uv_index').entries()){const box=node('div',undefined,'live-reading'),value=sensor.observation?.values[key],strong=node('strong',Number.isFinite(value)?value.toLocaleString('de-CH',{maximumFractionDigits:['solar','pressure'].includes(kind)?0:1}):'–');strong.append(node('small',' '+unit));if(key==='wind_direction_degrees'&&Number.isFinite(value))strong.append(node('small',' · '+directions[Math.round(value/22.5)%16]));box.append(node('span',label,'live-reading-label'),strong);if(index===0)box.classList.add('live-primary');readings.append(box)}
  if(kind==='wind')readings.replaceChildren(windRose(sensor.observation?.values));
  const stat=(key,label,unit)=>{const box=node('div',undefined,'live-derived-stat');box.append(node('span',label));const value=node('strong','–');value.dataset.liveStat=key;value.dataset.unit=unit;box.append(value);return box};
  if(kind==='lightning'){readings.replaceChildren();readings.classList.add('live-storm-values');for(const [key,label,unit]of [['stormCount','Blitze',''],['stormLast','Letzter Blitz','km'],['stormNearest','Geringste Distanz','km']]){const box=stat(key,label,unit);box.classList.add('live-reading');if(key==='stormCount')box.classList.add('live-primary');readings.append(box)}}
@@ -67,9 +70,27 @@
   const plot=previous.querySelector('.live-mini');if(plot)card.append(plot);
  }
  container.append(card)}if(!state.sensors?.length)container.append(node('p','Noch keine Live-Sensoren konfiguriert.'));updateClock();window.dispatchEvent(new CustomEvent('weather-live-rendered',{detail:state}))}
- async function load(){if(!active()||busy)return;clearTimeout(nextPoll);busy=true;const current=++generation;request=new AbortController();updateClock();status.textContent=state?'':'Messwerte werden abgerufen …';try{const response=await fetch('/api/live',{signal:request.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'Die App konnte die Messwerte nicht laden.');if(current!==generation)return;const changed=!state||WeatherLiveCardData.liveVersion(state)!==WeatherLiveCardData.liveVersion(result);state=result;status.textContent=result.error||'';if(changed)render();else{updateClock();window.dispatchEvent(new CustomEvent('weather-live-status-updated',{detail:state}))}}catch(error){if(error.name!=='AbortError'&&current===generation)status.textContent='Abruf fehlgeschlagen. '+error.message}finally{if(current===generation){busy=false;updateClock();if(active())nextPoll=setTimeout(load,120000)}}}
+ async function readCurrent(signal){
+  if(station.value){
+   const result=await WeatherNasArchive.request('/meteoswiss',{station:station.value,action:'live'},{signal});
+   return {...result,station:station.value};
+  }
+  const response=await fetch('/api/live',{signal});
+  const result=await response.json();
+  if(!response.ok)throw Error(result.message||'Die App konnte die Messwerte nicht laden.');
+  return result;
+ }
+ async function load(){if(!active()||busy)return;clearTimeout(nextPoll);busy=true;const current=++generation;request=new AbortController();updateClock();status.textContent=state?'':'Messwerte werden abgerufen …';try{const result=await readCurrent(request.signal);if(current!==generation)return;const changed=!state||WeatherLiveCardData.liveVersion(state)!==WeatherLiveCardData.liveVersion(result);state=result;status.textContent=result.error||'';if(changed)render();else{updateClock();window.dispatchEvent(new CustomEvent('weather-live-status-updated',{detail:state}))}}catch(error){if(error.name!=='AbortError'&&current===generation)status.textContent='Abruf fehlgeschlagen. '+error.message}finally{if(current===generation){busy=false;updateClock();if(active())nextPoll=setTimeout(load,station.value?300000:120000)}}}
  function tickClock(){updateClock();clockTimer=setTimeout(tickClock,60000-Date.now()%60000+10)}
  function start(){if(active()){if(!clockTimer)tickClock();load()}else{clearTimeout(nextPoll);clearTimeout(clockTimer);clockTimer=null;generation++;request?.abort();busy=false}}
  window.WeatherCurrentLiveState=()=>state;
+ station.onchange=()=>{
+  try{localStorage.setItem('wetter.liveStation',station.value)}catch(error){}
+  document.getElementById('openLiveArchive').hidden=Boolean(station.value);
+  clearTimeout(nextPoll);generation++;request?.abort();busy=false;state=null;container.replaceChildren();
+  window.dispatchEvent(new Event('weather-live-source-changed'));
+  start();
+ };
+ document.getElementById('openLiveArchive').hidden=Boolean(station.value);
  refresh.onclick=load;window.addEventListener('weather-live-connection-changed',()=>{state=null;container.replaceChildren();start()});window.addEventListener('hashchange',start);document.addEventListener('visibilitychange',start);start();
 })();

@@ -430,3 +430,6 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial {
   display: block;
   font-size: 10px;
 }
+
+#liveStation { max-width: min(170px, 32vw); }
+#openLiveArchive[hidden] { display: none; }
