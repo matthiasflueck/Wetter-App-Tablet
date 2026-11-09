@@ -442,7 +442,7 @@
  window.addEventListener('weather-live-source-changed',()=>{revision++;historyController?.abort();snapshot=null;cached.clear();clearPlotObservers()});
  window.addEventListener('weather-live-status-updated',event=>{snapshot=event.detail});
  window.addEventListener('weather-live-rendered',event=>{snapshot=event.detail;applyDisplay();load()});window.addEventListener('hashchange',()=>{if(location.hash!=='#live'){revision++;historyController?.abort();clearPlotObservers()}});
- const dialog=$('liveArchiveDialog');$('openLiveArchive').onclick=()=>{if(!dialog.open)dialog.showModal();$('liveArchive').open=true};$('closeLiveArchive').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{$('liveArchive').open=false});dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
+
  // Explicit live-height mode neutralizes presentation-only zoom geometry in fullscreen.
  function fit(){if(!document.body.classList.contains('focus-mode'))return;if(arranging){arranging=false;$('liveArrange').setAttribute('aria-pressed','false');orderControls()}document.documentElement.style.setProperty('--live-screen-height',window.innerHeight+'px')}
  window.addEventListener('resize',fit);fit();snapshot=window.WeatherCurrentLiveState?.();if(snapshot){applyDisplay();load()};

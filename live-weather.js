@@ -86,11 +86,9 @@
  window.WeatherCurrentLiveState=()=>state;
  station.onchange=()=>{
   try{localStorage.setItem('wetter.liveStation',station.value)}catch(error){}
-  document.getElementById('openLiveArchive').hidden=Boolean(station.value);
   clearTimeout(nextPoll);generation++;request?.abort();busy=false;state=null;container.replaceChildren();
   window.dispatchEvent(new Event('weather-live-source-changed'));
   start();
  };
- document.getElementById('openLiveArchive').hidden=Boolean(station.value);
  refresh.onclick=load;window.addEventListener('weather-live-connection-changed',()=>{state=null;container.replaceChildren();start()});window.addEventListener('hashchange',start);document.addEventListener('visibilitychange',start);start();
 })();
