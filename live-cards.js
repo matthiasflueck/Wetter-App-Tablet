@@ -206,12 +206,7 @@
    const elevation=snapshot?.station?Number($('liveStation').selectedOptions[0]?.dataset.elevation):stationHeight;
    const value=Number.isFinite(official)?official:WeatherLiveCardData.seaLevelPressure(stationPressure,temperature,elevation);
    const [low,high]=scales.barometer,[lowZone,highZone]=scales.barometerZones;
-   for(const key of Object.keys(pressureColors)){
-    const property='--pressure-'+key;
-    if(pressureColors[key]===defaultPressureColors[key])upper.style.removeProperty(property);
-    else upper.style.setProperty(property,pressureColors[key]);
-   }
-   const zones=[['Tief','var(--pressure-low)','☁',low,lowZone],['Normal','var(--pressure-normal)','◐',lowZone,highZone],['Hoch','var(--pressure-high)','☀',highZone,high]];
+   const zones=[['Tief',pressureColors.low,'☁',low,lowZone],['Normal','var(--pressure-normal)','◐',lowZone,highZone],['Hoch',pressureColors.high,'☀',highZone,high]];
    const zone=zones[value<lowZone?0:value<highZone?1:2];
    const primary=card.querySelector('.live-primary strong');
    const unit=document.createElement('small');
@@ -239,9 +234,10 @@
    const outside=Number.isFinite(value)&&(value<low||value>high);
    note.textContent=source+' · Feste Zeigerskala: '+scaleLabel+'.'
     +(outside?' Der Messwert liegt ausserhalb der Skala. Der Zeiger steht am Skalenende.':'')
+    +(lowZone<=low||highZone>=high?' Einzelne Farbzonen liegen ausserhalb der gewählten Zeigerskala.':'')
     +' Druckänderungen beziehen sich auf den gemessenen Stationsdruck.';
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-   svg.setAttribute('viewBox','0 0 144 123');
+   svg.setAttribute('viewBox','0 0 144 127');
    svg.setAttribute('role','img');
    const reading=Number.isFinite(value)?num(value)+' hPa':'kein Messwert';
    svg.setAttribute('aria-label','Barometer auf Meereshöhe · '+reading+(Number.isFinite(value)?' · '+zone[0]:'')+' · Skala '+scaleLabel+(outside?' · ausserhalb der Skala':''));
@@ -260,7 +256,7 @@
     const a=angleFor(first),b=angleFor(last);
     if(b<=a)continue;
     const [x1,y1]=point(a,57),[x2,y2]=point(b,57);
-    add('path',{d:`M ${x1} ${y1} A 57 57 0 ${Number(b-a>180)} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':5});
+    add('path',{d:`M ${x1} ${y1} A 57 57 0 ${Number(b-a>180)} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':8});
    }
    for(let i=0;i<=24;i++){
     const angle=-120+10*i,major=i%6===0;
@@ -278,7 +274,11 @@
     add('circle',{cx:72,cy:66,r:4.5,fill:zone[1]});
    }
    add('text',{x:72,y:105,'text-anchor':'middle',fill:'var(--muted)','font-size':10},'hPa · Meer');
-   for(const [i,[label,color,icon]] of zones.entries())add('text',{x:29+43*i,y:120,'text-anchor':'middle',fill:color,'font-size':11},icon+' '+label);
+   for(const [i,[label,color,icon]] of zones.entries()){
+    const x=29+43*i;
+    add('line',{x1:x-9,x2:x+9,y1:112,y2:112,stroke:color,'stroke-width':3,'stroke-linecap':'round'});
+    add('text',{x,y:123,'text-anchor':'middle',fill:color,'font-size':10},icon+' '+label);
+   }
    meter.replaceChildren(svg);
   }
  }
@@ -300,18 +300,21 @@
  elevationLabel.append(elevationInput);
  elevationField.append(elevationTitle,elevationLabel);
  gaugeFields.append(elevationField);
- const colorField=document.createElement('fieldset'),colorTitle=document.createElement('legend'),colorInputs={};
- colorTitle.textContent='Barometer · Farben';colorField.append(colorTitle);
- for(const [key,label] of [['low','Tiefdruck'],['high','Hochdruck']]){
-  const wrap=document.createElement('label'),input=document.createElement('input');
-  wrap.textContent=label;input.type='color';input.value=pressureColors[key];wrap.append(input);
-  colorField.append(wrap);colorInputs[key]=input;
- }
- gaugeFields.append(colorField);
- const scaleInputs={};
+ const scaleInputs={},colorInputs={};
  for(const [key,[name,unit]] of Object.entries(scaleSpecs)){
   const field=document.createElement('fieldset'),title=document.createElement('legend');title.textContent=name+' · '+unit;field.append(title);
-  scaleInputs[key]=(key==='barometerZones'?['Tief unter','Hoch ab']:['Min','Max']).map((label,i)=>{const wrap=document.createElement('label'),input=document.createElement('input');wrap.textContent=label;input.type='number';input.step='any';input.required=true;input.value=scales[key][i];input.setAttribute('aria-label',name+' '+label);wrap.append(input);field.append(wrap);return input});(gaugeKeys.has(key)?gaugeFields:scaleFields).append(field);
+  const isZones=key==='barometerZones';
+  scaleInputs[key]=(isZones?['Tiefdruck unter','Hochdruck ab']:['Min','Max']).map((label,i)=>{
+   const wrap=document.createElement('label'),input=document.createElement('input');
+   wrap.textContent=label;input.type='number';input.step='any';input.required=true;input.value=scales[key][i];input.setAttribute('aria-label',name+' '+label);wrap.append(input);
+   if(isZones){
+    const zone=document.createElement('div'),colorLabel=document.createElement('label'),color=document.createElement('input'),colorKey=i===0?'low':'high';
+    colorLabel.textContent='Farbe';color.type='color';color.value=pressureColors[colorKey];color.setAttribute('aria-label',i===0?'Farbe Tiefdruck':'Farbe Hochdruck');
+    colorLabel.append(color);zone.append(wrap,colorLabel);field.append(zone);colorInputs[colorKey]=color;
+   }else field.append(wrap);
+   return input;
+  });
+  (gaugeKeys.has(key)?gaugeFields:scaleFields).append(field);
  }
  $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}if(!validHeight(elevationInput.valueAsNumber))return;stationHeight=elevationInput.valueAsNumber;scales=next;for(const [key,input] of Object.entries(colorInputs))pressureColors[key]=input.value;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawGauges();redrawCharts()};
  $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();pressureColors={...defaultPressureColors};for(const [key,input] of Object.entries(colorInputs))input.value=pressureColors[key];stationHeight=defaultStationHeight;elevationInput.value=stationHeight;for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawGauges();redrawCharts()};
