@@ -11,7 +11,7 @@
  const scaleSpecs={
   thermometer:['Thermometer','°C',-20,40],thermohygro:['Temperaturdiagramm','°C',-20,40],
   rain:['Niederschlag','mm',0,100],wind:['Wind und Böen','km/h',0,100],pressure:['Luftdruck','hPa',920,1040],
-  solar:['Solarstrahlung','W/m²',0,1200],lightning:['Gewitter · Anzahl','Blitze',0,1000],distance:['Gewitter · Entfernung','km',0,40]
+  solar:['Solarstrahlungsdiagramm','W/m²',0,1200],solarMeter:['Solarstrahlung · Säule','W/m²',0,1200],lightning:['Gewitter · Anzahl','Blitze',0,1000],distance:['Gewitter · Entfernung','km',0,40]
  };
  const scaleDefaults=()=>Object.fromEntries(Object.entries(scaleSpecs).map(([key,spec])=>[key,spec.slice(2)]));
  let scales=scaleDefaults(),customScales=false;
@@ -64,7 +64,47 @@
    meter.replaceChildren(svg);
   }
  }
- function redrawScales(){thermometer();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
+ function solarMeter(){
+  for(const card of grid.querySelectorAll('[data-sensor-kind=solar]')){
+   const upper=card.querySelector('.live-solar-upper');
+   let meter=upper.querySelector('.live-solar-meter');
+   if(!meter){
+    meter=document.createElement('div');
+    meter.className='live-solar-meter';
+    upper.append(meter);
+   }
+   const [low,high]=scales.solarMeter;
+   const value=snapshot?.sensors.find(sensor=>sensor.key===card.dataset.sensorKey)?.observation?.values?.solar_wm2;
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+   svg.setAttribute('role','img');
+   const reading=Number.isFinite(value)?num(value)+' W/m²':'kein Messwert';
+   svg.setAttribute('aria-label','Solarstrahlung '+reading+' · Skala '+low+' bis '+high+' W/m²');
+   const add=(tag,attributes,label,parent=svg)=>{
+    const element=document.createElementNS(svg.namespaceURI,tag);
+    for(const [name,attribute] of Object.entries(attributes))element.setAttribute(name,attribute);
+    if(label!==undefined)element.textContent=label;
+    parent.append(element);
+    return element;
+   };
+   const id='solar-meter-'+(++clipNumber);
+   const defs=add('defs',{});
+   const gradient=add('linearGradient',{id,x1:0,y1:1,x2:0,y2:0},undefined,defs);
+   add('stop',{offset:0,'stop-color':'var(--sensor)'},undefined,gradient);
+   add('stop',{offset:1,'stop-color':'#ffe49c'},undefined,gradient);
+   add('rect',{x:2,y:'8%',width:12,height:'84%',rx:6,fill:'var(--bg)',stroke:'var(--line)'});
+   if(Number.isFinite(value)){
+    const fill=Math.max(0,Math.min(1,(value-low)/(high-low)))*84;
+    if(fill>0)add('rect',{x:3,y:(92-fill)+'%',width:10,height:fill+'%',rx:5,fill:'url(#'+id+')'});
+   }
+   for(let i=0;i<=16;i++){
+    const y=(92-84*i/16)+'%',major=i%4===0;
+    add('line',{x1:17,x2:major?24:21,y1:y,y2:y,stroke:'var(--muted)','stroke-width':.7});
+    if(major)add('text',{x:27,y,dy:3,fill:'var(--muted)','font-size':9},num(low+(high-low)*i/16));
+   }
+   meter.replaceChildren(svg);
+  }
+ }
+ function redrawScales(){thermometer();solarMeter();clearPlotObservers();for(const card of grid.querySelectorAll('[data-sensor-key]')){const entry=cached.get(card.dataset.sensorKey),host=card.querySelector('.live-mini');if(entry&&host){if(entry.storm)renderStorm(host,entry.storm,card);else render(host,entry.cfg,entry.datasets)}}}
  const scaleToggle=$('liveScaleToggle'),scaleFields=$('liveScaleFields'),scaleStatus=$('liveScaleStatus');
  function syncScaleToggle(){scaleToggle.setAttribute('aria-pressed',String(customScales));scaleToggle.textContent=customScales?'↕ Eigene':'↕ Auto';scaleToggle.title=customScales?'Eigene Diagrammskalen':'Automatische Diagrammskalen';scaleToggle.setAttribute('aria-label',scaleToggle.title)}
  function saveScales(){try{localStorage.setItem('wetter.liveScales',JSON.stringify({custom:customScales,bounds:scales}));return true}catch(e){return false}}
@@ -76,7 +116,7 @@
  $('liveScalesForm').onsubmit=e=>{e.preventDefault();const next={};for(const [key,inputs] of Object.entries(scaleInputs)){const pair=inputs.map(input=>input.valueAsNumber);if(!validScale(key,...pair)){scaleStatus.textContent=scaleSpecs[key][0]+': Min muss kleiner als Max sein.'+(key==='thermometer'?' Die Skala muss 0 °C einschliessen.':!['thermohygro','pressure'].includes(key)?' Min darf nicht negativ sein.':'');inputs[0].focus();return}next[key]=pair}scales=next;scaleStatus.textContent=saveScales()?'Skalen gespeichert.':'Skalen für diese Sitzung übernommen.';redrawScales()};
  $('liveScalesDefault').onclick=()=>{scales=scaleDefaults();for(const [key,inputs] of Object.entries(scaleInputs))inputs.forEach((input,i)=>input.value=scales[key][i]);scaleStatus.textContent=saveScales()?'Standardwerte wiederhergestellt.':'Standardwerte für diese Sitzung übernommen.';redrawScales()};
  scaleToggle.onclick=()=>{customScales=!customScales;saveScales();syncScaleToggle();redrawScales()};syncScaleToggle();
- function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer()}
+ function applyDisplay(){const cards=[...grid.querySelectorAll('[data-sensor-key]')],known=new Map(cards.map(c=>[c.dataset.sensorKey,c]));for(const key of display.order){const card=known.get(key);if(card){grid.append(card);known.delete(key)}}for(const card of known.values())grid.append(card);for(const card of cards){const kind=card.dataset.sensorKind;card.style.setProperty('--sensor',display.colors[kind]||defaults[kind]?.[1]||'#d87543')}orderControls();solarTimes();feelsLike();thermometer();solarMeter()}
  $('liveArrange').onclick=()=>{arranging=!arranging;$('liveArrange').setAttribute('aria-pressed',String(arranging));orderControls()};
  for(const [kind,[label,color]]of Object.entries(defaults)){const field=document.createElement('label'),input=document.createElement('input');field.append(document.createTextNode(label));input.type='color';input.value=display.colors[kind]||color;input.dataset.liveColor=kind;input.setAttribute('aria-label','Kachelfarbe '+label);input.oninput=()=>{display.colors[kind]=input.value;saveDisplay();applyDisplay();$('liveAppearanceStatus').textContent='Kachelfarbe gespeichert.'};field.append(input);$('liveColorSettings').append(field)}
  $('liveColorsDefault').onclick=()=>{display.colors={};saveDisplay();for(const input of $('liveColorSettings').querySelectorAll('input'))input.value=defaults[input.dataset.liveColor][1];applyDisplay();$('liveAppearanceStatus').textContent='Standardfarben wiederhergestellt.'};

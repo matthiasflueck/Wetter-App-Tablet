@@ -46,8 +46,8 @@
  if(kind==='solar')extras.append(stat('solarMax','Max','W/m²'));
  if(kind==='pressure')extras.append(stat('pressure24','Änderung 24 h','hPa'),stat('pressure1','Änderung 1 h','hPa'));
  if(extras.children.length){extras.title='Max/Min und Druckänderungen im gewählten Anzeigezeitraum.';if(kind==='wind')readings.querySelector('.live-wind-display').append(extras);else readings.append(extras)}
- const badge=node('span','', 'live-badge');panel.querySelector('.live-status-heading').after(badge);if(kind==='thermohygro'){
-  const upper=node('div',undefined,'live-temperature-upper');
+ const badge=node('span','', 'live-badge');panel.querySelector('.live-status-heading').after(badge);if(kind==='thermohygro'||kind==='solar'){
+  const upper=node('div',undefined,kind==='solar'?'live-solar-upper':'live-temperature-upper');
   upper.append(head,readings);card.append(upper);
  }else card.append(head,readings);
  const previous=previousCards.get(sensor.key);

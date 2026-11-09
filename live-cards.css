@@ -188,3 +188,76 @@ body.focus-mode #view-live .live-display-controls { grid-column: 3; grid-row: 1;
 #openLiveArchive { display: grid; place-items: center; padding: 7px 9px; }
 #liveScaleToggle { padding-inline: 8px; white-space: nowrap; }
 #view-live .live-temperature-upper .live-primary strong { white-space: nowrap; }
+
+/* Give the clock its own centred column and place the scale control beside it. */
+.live-clock-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+}
+.live-clock-controls > .live-dashboard-clock { grid-column: 2; grid-row: 1; }
+.live-clock-controls > #liveScaleToggle { grid-column: 3; grid-row: 1; justify-self: start; }
+body.focus-mode #view-live > .live-dashboard-toolbar {
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+  padding-right: 0;
+}
+body.focus-mode #view-live .live-clock-controls { display: contents; }
+body.focus-mode #view-live #liveScaleToggle {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+  margin-left: 6px;
+}
+body.focus-mode #view-live .live-display-controls {
+  justify-self: end;
+  margin-right: 140px;
+}
+@media (orientation: portrait), (max-width: 950px) {
+  body.focus-mode #view-live .live-dashboard-toolbar { row-gap: 2px; }
+  body.focus-mode #view-live .live-period-controls { grid-column: 1 / 3; grid-row: 2; }
+  body.focus-mode #view-live .live-display-controls { grid-column: 3; grid-row: 2; margin-right: 0; }
+}
+@media (max-width: 650px) {
+  .live-dashboard-clock { column-gap: 6px; }
+  .live-dashboard-clock > span { font-size: 11px; }
+}
+
+/* Keep the readings close to the meter as a group. */
+#view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper > .live-values {
+  justify-content: start;
+  column-gap: clamp(3px, .35vw, 6px);
+}
+#view-live .live-temperature-upper { column-gap: 1px; }
+
+#view-live .live-solar-upper {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  grid-template-rows: auto 1fr;
+  gap: 0 5px;
+  padding-bottom: 8px;
+}
+body.focus-mode #view-live .live-solar-upper { flex: 0 0 auto; }
+#view-live .live-solar-upper > .live-sensor-heading,
+#view-live .live-solar-upper > .live-values { grid-column: 1; }
+#view-live .live-solar-upper > .live-sensor-heading > .live-identity {
+  max-width: calc(100% - 28px);
+}
+.live-solar-meter {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 0;
+}
+.live-solar-meter svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper > .live-values {
+  grid-template-columns: 35px minmax(0, 1fr) max-content;
+  column-gap: 6px;
+  align-content: center;
+  container-type: inline-size;
+}
+#view-live .live-solar-upper .live-primary strong { white-space: nowrap; }
+@container (max-width: 250px) {
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-primary,
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-reading:not(.live-primary) { grid-column: 2 / 4; }
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-derived { grid-column: 2 / 4; grid-row: 3; }
+}
