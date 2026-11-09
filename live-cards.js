@@ -105,14 +105,14 @@
   }
  }
  function rainTank(card){
-  const upper=card.querySelector('.live-rain-upper');
-  const reading=upper.querySelector('[data-live-stat=rain24]');
+  const readings=card.querySelector('.live-rain-values');
+  const reading=readings.querySelector('[data-live-stat=rain24]');
   const value=reading.dataset.value===undefined?null:Number(reading.dataset.value);
-  let meter=upper.querySelector('.live-rain-tank');
+  let meter=readings.querySelector('.live-rain-tank');
   if(!meter){
    meter=document.createElement('div');
    meter.className='live-rain-tank';
-   upper.prepend(meter);
+   readings.prepend(meter);
   }
   const [low,high]=scales.rainTank;
   const top=17,bottom=115,level=bottom-(bottom-top)*Math.max(0,Math.min(1,(value-low)/(high-low)));
