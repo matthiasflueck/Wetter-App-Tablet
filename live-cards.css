@@ -371,7 +371,7 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
   flex-wrap: wrap;
   justify-content: flex-start;
   align-items: center;
-  gap: 12px clamp(14px, 1.5vw, 21px);
+  gap: 18px clamp(22px, 2.2vw, 32px);
 }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-primary strong {
   font-size: var(--live-main-size);
