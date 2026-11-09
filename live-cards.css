@@ -349,26 +349,37 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
   font-weight: 600;
 }
 
-#view-live .live-rain-upper { container-type: inline-size; padding-bottom: 8px; }
-.live-rain-tank {
+#view-live .live-rain-upper {
   position: relative;
-  width: clamp(62px, 24cqw, 108px);
-  height: 0;
-}
-.live-rain-tank svg {
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  width: 100%;
-  height: auto;
-  transform: translateY(calc(-50% - 24px));
-}
-#view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-rain-values {
+  container-type: inline-size;
+  padding-bottom: 12px;
   display: grid;
-  grid-template-columns: repeat(3, max-content);
+  grid-template-columns: clamp(58px, 23%, 108px) max-content max-content;
+  grid-template-rows: auto 1fr;
   align-items: center;
   justify-content: safe center;
-  column-gap: clamp(8px, 4cqw, 28px);
+  column-gap: clamp(8px, 4%, 28px);
+}
+#view-live .live-rain-upper > .live-sensor-heading {
+  grid-column: 2 / 4;
+  grid-row: 1;
+  position: static;
+  contain: inline-size;
+}
+#view-live .live-rain-upper .live-sensor-heading > .live-identity {
+  max-width: none;
+  justify-self: start;
+}
+#view-live .live-rain-upper .live-sensor-heading > .live-info { top: 16px; }
+#view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper > .live-rain-values { display: contents; }
+#view-live .live-rain-upper .live-rain-values > .live-rain-tank {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.live-rain-tank svg { display: block; width: 100%; height: auto; }
+#view-live .live-rain-upper .live-rain-values > .live-primary {
+  grid-column: 2;
+  grid-row: 2;
 }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-primary strong {
   font-size: var(--live-main-size);
@@ -376,6 +387,8 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 }
 #view-live .live-rain-secondary {
   display: grid;
+  grid-column: 3;
+  grid-row: 2;
   justify-items: center;
   gap: 5px;
   text-align: center;
