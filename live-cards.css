@@ -269,9 +269,8 @@ body.focus-mode #view-live .live-solar-upper { flex: 0 0 auto; }
   grid-template-columns: 58px minmax(0, 1fr);
   column-gap: 8px;
 }
-#view-live .live-solar-upper > .live-sensor-heading,
 #view-live .live-solar-upper > .live-values { grid-column: 2; }
-#view-live .live-solar-upper > .live-sensor-heading > .live-identity { justify-self: start; }
+#view-live .live-solar-upper > .live-sensor-heading { grid-column: 1 / -1; grid-row: 1; }
 .live-solar-meter { grid-column: 1; }
 #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper > .live-values {
   grid-template-columns: max-content minmax(0, max-content) max-content;
@@ -352,9 +351,10 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 
 #view-live .live-rain-upper {
   display: grid;
-  grid-template-columns: clamp(59px, 7vw, 88px) minmax(0, 1fr);
+  grid-template-columns: clamp(59px, 7vw, 88px) minmax(0, 220px);
   grid-template-rows: auto 1fr;
-  column-gap: 6px;
+  justify-content: center;
+  column-gap: 4px;
   padding-bottom: 8px;
 }
 #view-live .live-rain-upper > .live-sensor-heading,
@@ -367,10 +367,11 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 }
 .live-rain-tank svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-rain-values {
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, max-content) max-content;
   grid-template-rows: auto auto;
   align-content: center;
-  gap: 5px 8px;
+  justify-content: center;
+  gap: 5px 7px;
 }
 #view-live .live-rain-upper .live-rain-values > .live-primary { grid-column: 1; grid-row: 1 / span 2; }
 #view-live .live-rain-upper .live-rain-values > .live-reading:not(.live-primary) {
@@ -389,15 +390,16 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 }
 
 #view-live .live-sensor[data-sensor-kind=wind] > .live-sensor-heading {
-  padding-left: 46%;
+  padding-left: 30%;
   z-index: 1;
 }
 #view-live .live-sensor[data-sensor-kind=wind] > .live-values { margin-top: -14px; }
 body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] > .live-values { margin-top: -26px; }
 #view-live .live-sensor[data-sensor-kind=wind] .live-wind-display {
-  grid-template-columns: minmax(0, 1fr) max-content;
-  column-gap: clamp(4px, 1vw, 14px);
+  grid-template-columns: minmax(0, 191px) max-content;
+  column-gap: 5px;
 }
+#view-live .live-sensor[data-sensor-kind=wind] .live-wind-main { align-items: end; }
 #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial { width: min(100%, 191px); }
 body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial { width: min(100%, 171px); }
 #view-live .live-sensor[data-sensor-kind=wind] .live-wind-display > .live-derived { row-gap: 10px; }
@@ -409,7 +411,7 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=wind] .live-wind-dial {
 }
 #view-live .live-sensor[data-sensor-kind=wind] .live-wind-display > .live-derived {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: clamp(86px, 10vw, 155px);
+  width: clamp(86px, 9vw, 136px);
   column-gap: 6px;
 }
 #view-live .live-sensor[data-sensor-kind=wind] .live-derived-stat > span {

@@ -114,8 +114,7 @@
    meter.className='live-rain-tank';
    upper.prepend(meter);
   }
-  const automaticMax={'1':10,'2':15,'6':25,'24':50,'168':100,'720':200,'8760':1000}[range.value]??100;
-  const [low,high]=bounds('rainTank',0,Math.max(automaticMax,Math.ceil(value/automaticMax)*automaticMax));
+  const [low,high]=scales.rainTank;
   const top=17,bottom=115,level=bottom-(bottom-top)*Math.max(0,Math.min(1,(value-low)/(high-low)));
   const id='rain-water-'+(++clipNumber);
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
