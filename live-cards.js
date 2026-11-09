@@ -30,6 +30,10 @@
    if(!Array.isArray(pair)||!validScale(key,...pair))continue;
    if(key==='barometer'&&saved.barometerBasis!=='sea-level'){
     pair=pair.map(value=>WeatherLiveCardData.seaLevelPressure(value,15,stationHeight));
+    if(validScale(key,...pair)){
+     const rounded=pair.map(value=>Math.round(value*10)/10);
+     if(validScale(key,...rounded))pair=rounded;
+    }
    }
    if(validScale(key,...pair))scales[key]=pair.slice(0,2);
   }
@@ -234,12 +238,16 @@
    const info=card.querySelector('.live-info-panel');
    let note=info.querySelector('.live-pressure-source');
    if(!note){note=document.createElement('p');note.className='live-pressure-source';info.append(note)}
-   note.textContent=source+' · Druckänderungen beziehen sich auf den gemessenen Stationsdruck.';
+   const scaleLabel=num(low)+' bis '+num(high)+' hPa';
+   const outside=Number.isFinite(value)&&(value<low||value>high);
+   note.textContent=source+' · Zeigerskala ('+(customGauges?'Eigene':'Auto')+'): '+scaleLabel+'.'
+    +(outside?' Der Messwert liegt ausserhalb der Skala. Der Zeiger steht am Skalenende.':'')
+    +' Druckänderungen beziehen sich auf den gemessenen Stationsdruck.';
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 144 123');
    svg.setAttribute('role','img');
    const reading=Number.isFinite(value)?num(value)+' hPa':'kein Messwert';
-   svg.setAttribute('aria-label','Barometer auf Meereshöhe · '+reading+(Number.isFinite(value)?' · '+zone[0]:'')+' · Skala '+low+' bis '+high+' hPa');
+   svg.setAttribute('aria-label','Barometer auf Meereshöhe · '+reading+(Number.isFinite(value)?' · '+zone[0]:'')+' · Skala '+scaleLabel+(outside?' · ausserhalb der Skala':''));
    const add=(tag,attributes,label)=>{
     const element=document.createElementNS(svg.namespaceURI,tag);
     for(const [name,attribute] of Object.entries(attributes))element.setAttribute(name,attribute);
