@@ -39,7 +39,17 @@
  if(kind==='wind')readings.replaceChildren(windRose(sensor.observation?.values));
  const stat=(key,label,unit)=>{const box=node('div',undefined,'live-derived-stat');box.append(node('span',label));const value=node('strong','–');value.dataset.liveStat=key;value.dataset.unit=unit;box.append(value);return box};
  if(kind==='lightning'){readings.replaceChildren();readings.classList.add('live-storm-values');for(const [key,label,unit]of [['stormCount','Blitze',''],['stormLast','Letzter Blitz','km'],['stormNearest','Geringste Distanz','km']]){const box=stat(key,label,unit);box.classList.add('live-reading');if(key==='stormCount')box.classList.add('live-primary');readings.append(box)}}
- if(kind==='rain'){readings.replaceChildren();for(const [key,label] of [['rain24','Letzte 24 h'],['rain10','Letzte 10 min'],['rain1','Letzte 1 h']]){const box=stat(key,label,'mm');box.classList.add('live-reading');if(key==='rain24')box.classList.add('live-primary');readings.append(box)}readings.classList.add('live-rain-values')}
+ if(kind==='rain'){
+  const primary=stat('rain24','Letzte 24 h','mm'),secondary=node('div',undefined,'live-rain-secondary');
+  primary.classList.add('live-reading','live-primary');
+  for(const [key,label] of [['rain10','Letzte 10 min'],['rain1','Letzte 1 h']]){
+   const box=stat(key,label,'mm');
+   box.classList.add('live-reading');
+   secondary.append(box);
+  }
+  readings.replaceChildren(primary,secondary);
+  readings.classList.add('live-rain-values');
+ }
  const extras=node('div',undefined,'live-derived');
  if(kind==='thermohygro')extras.append(stat('dayMax','Max','°C'),stat('dayMin','Min','°C'));
  if(kind==='wind'){extras.append(readings.querySelector('.wind-current-gust'),stat('gustMax','Heute Max','km/h'),stat('gustMin','Heute Min','km/h'))}
