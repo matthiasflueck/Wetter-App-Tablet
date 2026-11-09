@@ -351,7 +351,7 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 
 #view-live .live-rain-upper {
   display: grid;
-  grid-template-columns: clamp(59px, 7vw, 88px) minmax(0, 260px);
+  grid-template-columns: clamp(54px, 19%, 88px) minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   justify-content: center;
   column-gap: 2px;
@@ -368,10 +368,10 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 .live-rain-tank svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-rain-values {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 18px clamp(22px, 2.2vw, 32px);
+  justify-content: space-between;
+  column-gap: clamp(22px, 3vw, 42px);
 }
 #view-live .live-sensor[data-sensor-kind=rain] .live-rain-upper .live-primary strong {
   font-size: var(--live-main-size);
@@ -379,6 +379,7 @@ body.focus-mode #view-live .live-mini .live-mini-tooltip {
 }
 #view-live .live-rain-secondary {
   display: grid;
+  flex: none;
   justify-items: center;
   gap: 5px;
   text-align: center;

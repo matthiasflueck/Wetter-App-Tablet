@@ -42,7 +42,7 @@
  if(kind==='rain'){
   const primary=stat('rain24','Letzte 24 h','mm'),secondary=node('div',undefined,'live-rain-secondary');
   primary.classList.add('live-reading','live-primary');
-  for(const [key,label] of [['rain10','Letzte 10 min'],['rain1','Letzte 1 h']]){
+  for(const [key,label] of [['rain10','10 min'],['rain1','1 h']]){
    const box=stat(key,label,'mm');
    box.classList.add('live-reading');
    secondary.append(box);
