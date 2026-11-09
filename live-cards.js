@@ -51,10 +51,6 @@
   if(key==='thermometer'){
    return [Math.min(-10,Math.floor((value-5)/10)*10),Math.max(20,Math.ceil((value+5)/10)*10)];
   }
-  if(key==='barometer'){
-   const center=Math.round(value/20)*20;
-   return [Math.min(center-20,scales.barometerZones[0]-10),Math.max(center+20,scales.barometerZones[1]+10)];
-  }
   if(key==='solarMeter')return [0,Math.max(200,Math.ceil(value*1.1/200)*200)];
   const target=Math.max(5,value*1.2);
   const magnitude=10**Math.floor(Math.log10(target));
@@ -209,7 +205,7 @@
    const temperature=snapshot?.sensors.find(sensor=>sensor.kind==='thermohygro')?.observation?.values?.temperature_c;
    const elevation=snapshot?.station?Number($('liveStation').selectedOptions[0]?.dataset.elevation):stationHeight;
    const value=Number.isFinite(official)?official:WeatherLiveCardData.seaLevelPressure(stationPressure,temperature,elevation);
-   const [low,high]=gaugeBounds('barometer',value),[lowZone,highZone]=scales.barometerZones;
+   const [low,high]=scales.barometer,[lowZone,highZone]=scales.barometerZones;
    for(const key of Object.keys(pressureColors)){
     const property='--pressure-'+key;
     if(pressureColors[key]===defaultPressureColors[key])upper.style.removeProperty(property);
@@ -241,7 +237,7 @@
    if(!note){note=document.createElement('p');note.className='live-pressure-source';info.append(note)}
    const scaleLabel=num(low)+' bis '+num(high)+' hPa';
    const outside=Number.isFinite(value)&&(value<low||value>high);
-   note.textContent=source+' · Zeigerskala ('+(customGauges?'Eigene':'Auto')+'): '+scaleLabel+'.'
+   note.textContent=source+' · Feste Zeigerskala: '+scaleLabel+'.'
     +(outside?' Der Messwert liegt ausserhalb der Skala. Der Zeiger steht am Skalenende.':'')
     +' Druckänderungen beziehen sich auf den gemessenen Stationsdruck.';
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
