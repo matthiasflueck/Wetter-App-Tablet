@@ -221,13 +221,6 @@ body.focus-mode #view-live .live-display-controls {
   .live-dashboard-clock > span { font-size: 11px; }
 }
 
-/* Keep the readings close to the meter as a group. */
-#view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper > .live-values {
-  justify-content: start;
-  column-gap: clamp(3px, .35vw, 6px);
-}
-#view-live .live-temperature-upper { column-gap: 1px; }
-
 #view-live .live-solar-upper {
   display: grid;
   flex: 1 0 auto;
@@ -262,32 +255,38 @@ body.focus-mode #view-live .live-solar-upper { flex: 0 0 auto; }
   #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper .live-values > .live-derived { grid-column: 2 / 4; grid-row: 3; }
 }
 
-/* Centre each instrument together with its readings. */
-#view-live .live-sensor:is([data-sensor-kind=thermohygro],[data-sensor-kind=solar]) { container-type: inline-size; }
+/* Distribute the instruments and readings within the card padding. */
+#view-live .live-sensor:is([data-sensor-kind=thermohygro],[data-sensor-kind=solar],[data-sensor-kind=pressure]) { container-type: inline-size; }
 #view-live .live-temperature-upper {
-  grid-template-columns: 70px minmax(0, max-content);
-  justify-content: center;
+  grid-template-columns: 70px minmax(0, 1fr);
+  column-gap: 8px;
 }
 #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper > .live-values {
+  justify-content: space-evenly;
   container-type: normal;
 }
 #view-live .live-solar-upper {
-  grid-template-columns: 58px minmax(0, max-content);
-  justify-content: center;
-  column-gap: 3px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  column-gap: 8px;
 }
 #view-live .live-solar-upper > .live-sensor-heading,
 #view-live .live-solar-upper > .live-values { grid-column: 2; }
 #view-live .live-solar-upper > .live-sensor-heading > .live-identity { justify-self: start; }
 .live-solar-meter { grid-column: 1; }
 #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper > .live-values {
-  grid-template-columns: 32px minmax(0, max-content) max-content;
-  column-gap: 4px;
+  grid-template-columns: max-content minmax(0, max-content) max-content;
+  justify-content: space-evenly;
+  column-gap: clamp(4px, .5vw, 8px);
   container-type: normal;
 }
 #view-live .live-solar-upper .live-sun-times { gap: 12px; }
 #view-live .live-solar-upper .live-sun-event svg { width: 19px; height: 19px; }
 @container (max-width: 310px) {
+  #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper > .live-values,
+  #view-live .live-sensor[data-sensor-kind=solar] .live-solar-upper > .live-values {
+    grid-template-columns: max-content minmax(0, 1fr) 0;
+    column-gap: 4px;
+  }
   #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-primary,
   #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-reading:not(.live-primary) { grid-column: 2 / 4; }
   #view-live .live-sensor[data-sensor-kind=thermohygro] .live-temperature-upper .live-values > .live-derived {
@@ -305,28 +304,32 @@ body.focus-mode #view-live .live-solar-upper { flex: 0 0 auto; }
 #view-live .live-pressure-upper {
   display: grid;
   flex: 1 0 auto;
-  grid-template-columns: clamp(80px, 9vw, 138px) minmax(0, 1fr);
+  grid-template-columns: minmax(42px, 1fr) max-content minmax(max-content, 1fr);
   grid-template-rows: auto 1fr;
-  column-gap: 6px;
+  align-items: center;
+  column-gap: clamp(4px, .65vw, 10px);
+  padding-bottom: 8px;
 }
 body.focus-mode #view-live .live-pressure-upper { flex: 0 0 auto; }
 #view-live .live-pressure-upper > .live-sensor-heading { grid-column: 1 / -1; }
-#view-live .live-pressure-upper > .live-values {
+#view-live .live-sensor[data-sensor-kind=pressure] .live-pressure-upper > .live-values {
+  display: contents;
+}
+#view-live .live-pressure-upper .live-values > .live-primary {
   grid-column: 2;
   grid-row: 2;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  align-content: center;
-  row-gap: 3px;
+  white-space: nowrap;
 }
-#view-live .live-pressure-upper .live-values > .live-primary { grid-column: 1; grid-row: 1; white-space: nowrap; }
 #view-live .live-pressure-upper .live-values > .live-derived {
-  grid-column: 1;
+  grid-column: 3;
   grid-row: 2;
-  flex-flow: row wrap;
-  justify-content: center;
-  gap: 4px 9px;
+  justify-self: center;
+  gap: 6px;
 }
 #view-live .live-pressure-upper .live-derived-stat > strong { font-size: clamp(14px, 1.55vw, 24px); }
-.live-barometer { grid-column: 1; grid-row: 2; align-self: center; }
+.live-barometer { grid-column: 1; grid-row: 2; justify-self: center; width: min(100%, 138px); }
 .live-barometer svg { display: block; width: 100%; height: auto; }
+@container (max-width: 310px) {
+  #view-live .live-pressure-upper .live-primary small { display: block; }
+  #view-live .live-pressure-upper .live-derived-stat > span { max-width: 9ch; }
+}
