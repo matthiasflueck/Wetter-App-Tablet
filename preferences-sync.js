@@ -231,32 +231,62 @@
    dialog.showModal();
   });
  }
- function attach(authorize){
-  const button=document.getElementById('syncPreferences'),status=document.getElementById('preferenceSyncStatus');
-  if(!button||!status)return;
+ function attach({button,status,authorize,syncData}){
+  const dialog=document.getElementById('syncSelection'),form=dialog.querySelector('form');
+  const preferenceInput=form.elements.namedItem('preferences'),dataInput=form.elements.namedItem('data');
+  const submit=form.querySelector('[type=submit]');
+  const selectionKey='wetter.syncSelection',noticeKey='wetter.syncNotice';
+  const notice=sessionStorage.getItem(noticeKey);
+  if(notice){status.textContent=notice;sessionStorage.removeItem(noticeKey)}
   button.disabled=false;
-  let busy=false;
-  button.onclick=async()=>{
-   if(busy)return;
-   busy=true;button.disabled=true;status.textContent='Einstellungen werden abgeglichen …';
+  button.onclick=()=>{
+   const saved=parse(localStorage,selectionKey,{});
+   preferenceInput.checked=saved.preferences!==false;
+   dataInput.checked=saved.data===true;
+   form.onchange();
+   dialog.showModal();
+  };
+  form.onchange=()=>{submit.disabled=!preferenceInput.checked&&!dataInput.checked};
+  form.querySelector('[data-cancel]').onclick=()=>dialog.close();
+  form.onsubmit=async event=>{
+   event.preventDefault();
+   const selection={preferences:preferenceInput.checked,data:dataInput.checked};
+   if(!selection.preferences&&!selection.data)return;
+   localStorage.setItem(selectionKey,JSON.stringify(selection));
+   dialog.close();
+   button.disabled=true;
+   status.textContent='Verbindung mit Google wird geprüft …';
+   const results=[];
+   let reload=false;
+   const show=text=>{status.textContent=[...results,text].filter(Boolean).join(' · ')};
    try{
     const transport=await authorize();
-    const run=()=>synchronize(localStorage,transport,resolveConflicts,()=>crypto.randomUUID());
-    const result=navigator.locks?await navigator.locks.request('wetter-preference-sync',run):await run();
-    if(result.cancelled){status.textContent='Abgleich abgebrochen. Lokale Änderungen bleiben gespeichert.';return}
-    const message=result.changed||result.published?'Einstellungen synchronisiert.':'Die Einstellungen sind auf dem aktuellen Stand.';
-    if(result.changed){
-     sessionStorage.setItem('wetter.preferenceSyncNotice',message);
-     location.reload();
-    }else status.textContent=message;
-   }catch(error){status.textContent=error.message+' Lokale Einstellungen bleiben verfügbar.'}
-   finally{busy=false;button.disabled=false}
+    if(selection.preferences){
+     show('App-Einstellungen werden abgeglichen …');
+     try{
+      const run=()=>synchronize(localStorage,transport,resolveConflicts,()=>crypto.randomUUID());
+      const result=navigator.locks?await navigator.locks.request('wetter-preference-sync',run):await run();
+      reload=!!result.changed;
+      results.push(result.cancelled?'App-Einstellungen abgebrochen.':result.changed||result.published?'App-Einstellungen synchronisiert.':'App-Einstellungen sind aktuell.');
+     }catch(error){results.push('App-Einstellungen fehlgeschlagen. '+error.message)}
+    }
+    if(selection.data){
+     try{
+      const result=await syncData(show);
+      reload||=!!result.reload;
+      results.push(result.message);
+     }catch(error){results.push('Stations- und Referenzdaten fehlgeschlagen. '+error.message)}
+    }
+   }catch(error){results.push(error.message)}
+   finally{
+    show('');
+    button.disabled=false;
+    if(reload){sessionStorage.setItem(noticeKey,status.textContent);location.reload()}
+   }
   };
  }
- function startMac(){
-  const button=document.getElementById('syncPreferences'),token=button?.dataset.token;
-  if(!token)return;
-  attach(async()=>async(action,payload={})=>{
+ function macTransport(token){
+  return async(action,payload={})=>{
    const response=await fetch('/api/google/preferences',{
     method:'POST',headers:{'Content-Type':'application/json','X-Wetter-Token':token},
     body:JSON.stringify({action,...payload})
@@ -264,17 +294,9 @@
    const result=await response.json().catch(()=>({}));
    if(!response.ok)throw Error(result.message||'Google-Einstellungen sind gerade nicht erreichbar.');
    return result;
-  });
+  };
  }
- const api={driveTransport,synchronize,validateEvent,plan,readLocal,applyLocal,attach};
+ const api={driveTransport,macTransport,synchronize,validateEvent,plan,readLocal,applyLocal,attach};
  if(typeof module!=='undefined')module.exports=api;
- else{
-  root.WeatherPreferenceSync=api;
-  const status=document.getElementById('preferenceSyncStatus');
-  try{
-   const notice=sessionStorage.getItem('wetter.preferenceSyncNotice');
-   if(status&&notice){status.textContent=notice;sessionStorage.removeItem('wetter.preferenceSyncNotice')}
-  }catch(error){}
-  startMac();
- }
+ else root.WeatherPreferenceSync=api;
 })(typeof window==='undefined'?this:window);

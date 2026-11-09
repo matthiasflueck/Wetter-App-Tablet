@@ -1,7 +1,7 @@
 (async()=>{
   const status=document.getElementById('tabletStatus'),connect=document.getElementById('tabletConnect');
   const nativeFetch=window.fetch.bind(window);
-  let current=null,token=null,expires=0,busy=false,liveConnection=null;
+  let current=null,token=null,expires=0,liveConnection=null;
   const message=text=>status.textContent=text;
   const authorizedFetch=async (url,options={})=>{
     if(!token||Date.now()>=expires)throw Error('Bitte erneut mit Google anmelden.');
@@ -9,20 +9,17 @@
     if(response.status===401)throw Error('Google-Anmeldung abgelaufen. Bitte erneut verbinden.');
     if(!response.ok)throw Error('Google-Download fehlgeschlagen (HTTP '+response.status+').');return response;
   };
-  async function download(){
-    if(busy)return;busy=true;connect.disabled=true;
-    try{
-      message('Veröffentlichte Datenstände werden gesucht …');
-      const query=new URLSearchParams({spaces:'appDataFolder',q:"trashed = false and appProperties has { key='wetterRole' and value='publication' }",orderBy:'createdTime desc',pageSize:'1',fields:'files(id,name)'});
-      const result=await (await authorizedFetch('https://www.googleapis.com/drive/v3/files?'+query)).json();
-      if(!result.files?.length)throw Error('Noch keine veröffentlichte Messdatenversion gefunden. Bitte zuerst am Mac hochladen.');
-      const publication=await (await authorizedFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(result.files[0].id)+'?alt=media')).json();
-      if(!publication.mobile)throw Error('Dieser Google-Datenstand ist noch nicht tablet-kompatibel. Bitte am Mac erneut hochladen.');
-      if(current?.publication.bundle_id===publication.bundle_id){message('Der gespeicherte Datenstand ist aktuell.');return}
-      await WeatherReceiver.receive(authorizedFetch,publication,WeatherOffline,message);
-      if(navigator.storage?.persist)await navigator.storage.persist().catch(()=>false);
-      location.reload();
-    }catch(error){message(error.message+' Bereits gespeicherte Daten bleiben verfügbar.')}finally{busy=false;connect.disabled=false}
+  async function download(show){
+    show('Veröffentlichte Datenstände werden gesucht …');
+    const query=new URLSearchParams({spaces:'appDataFolder',q:"trashed = false and appProperties has { key='wetterRole' and value='publication' }",orderBy:'createdTime desc',pageSize:'1',fields:'files(id,name)'});
+    const result=await (await authorizedFetch('https://www.googleapis.com/drive/v3/files?'+query)).json();
+    if(!result.files?.length)throw Error('Noch kein Paket veröffentlicht. Bitte zuerst am Mac synchronisieren.');
+    const publication=await (await authorizedFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(result.files[0].id)+'?alt=media')).json();
+    if(!publication.mobile)throw Error('Dieser Datenstand ist noch nicht tablet-kompatibel. Bitte am Mac erneut synchronisieren.');
+    if(current?.publication.bundle_id===publication.bundle_id)return {message:'Stations- und Referenzdaten sind aktuell.'};
+    await WeatherReceiver.receive(authorizedFetch,publication,WeatherOffline,show);
+    if(navigator.storage?.persist)await navigator.storage.persist().catch(()=>false);
+    return {message:'Stations- und Referenzdaten offline gespeichert.',reload:true};
   }
   try{current=await WeatherOffline.read()}catch(error){message(error.message)}
   if(current){
@@ -96,8 +93,7 @@
         try{client.requestAccessToken()}catch(error){fail(error)}
       });
     };
-    connect.onclick=async()=>{try{await authorize();await download()}catch(error){message(error.message)}};
-    WeatherPreferenceSync.attach(async()=>{await authorize();return WeatherPreferenceSync.driveTransport(authorizedFetch)});
+    WeatherPreferenceSync.attach({button:connect,status:document.getElementById('syncAllStatus'),syncData:download,authorize:async()=>{await authorize();return WeatherPreferenceSync.driveTransport(authorizedFetch)}});
   }
   const googleScript=document.createElement('script');googleScript.src='https://accounts.google.com/gsi/client';googleScript.async=true;googleScript.onload=googleReady;googleScript.onerror=()=>message(status.textContent+' · Für einen neuen Download bitte eine Internetverbindung herstellen und die App erneut öffnen.');document.head.append(googleScript);
 })().catch(error=>{document.getElementById('tabletStatus').textContent='Die Tablet-App konnte nicht vollständig geöffnet werden: '+error.message+' Gespeicherte Offline-Daten wurden nicht gelöscht.'});

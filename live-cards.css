@@ -478,3 +478,6 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=pressure] .live-pressur
 .preference-conflicts form > [data-conflicts] { display: grid; gap: 10px; margin: 14px 0; }
 .preference-conflicts fieldset { min-width: 0; border: 1px solid var(--line); border-radius: 8px; }
 .preference-conflicts label { display: flex; align-items: start; gap: 8px; padding: 6px 0; overflow-wrap: anywhere; }
+
+.sync-options { display: grid; gap: 4px; margin: 14px 0; }
+.sync-options small { display: block; color: var(--muted); margin-top: 3px; }
