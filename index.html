@@ -66,17 +66,17 @@ header,main,.app-shell{max-width:none}header{gap:16px}header>.brand{flex:1}heade
  </div>
  <div id="archiveConfiguration" hidden>
   <div class="archive-config-tools">
-   <label>Name<input id="archiveViewName" type="text" maxlength="80" placeholder="Meine Ansicht"></label>
-   <button id="archiveSaveView" type="button">Speichern</button>
+   <div class="archive-view-tools"><label>Ansichtsname<input id="archiveViewName" type="text" maxlength="80" placeholder="Meine Ansicht"></label>
+   <button id="archiveSaveView" type="button">Ansicht speichern</button>
    <button id="archiveNewView" type="button">Neue Ansicht</button>
    <button id="archiveDeleteView" type="button" disabled>Löschen</button>
-   <label><input id="archiveStorm" type="checkbox" checked> Gewitterband</label>
+   </div><div class="archive-options-tools"><label><input id="archiveStorm" type="checkbox" checked> Gewitterband</label>
    <label>B-Anteil<select id="archiveBRatio"><option value="0.1">10 %</option><option value="0.2" selected>20 %</option><option value="0.3">30 %</option><option value="0.4">40 %</option><option value="0.5">50 %</option></select></label>
    <label data-archive-custom hidden>Von<input id="archiveStart" type="datetime-local"></label>
    <label data-archive-custom hidden>Bis<input id="archiveEnd" type="datetime-local"></label>
    <label data-archive-custom hidden>Auflösung<select id="archiveResolution"><option value="auto">Auto</option><option value="raw">Fein</option><option value="day">Tag</option><option value="month">Monat</option></select></label>
-  </div>
-  <div class="archive-config-grid"><div id="archiveMetrics" aria-label="Messgrössen zuordnen"></div><div id="archiveScales" aria-label="Achsenskalen"></div></div>
+  </div></div>
+  <div id="archiveMetrics" class="archive-config-grid" aria-label="Messgrössen und Skalen nach Bereich"></div>
  </div>
  <div class="archive-meta"><div id="archiveLegend" aria-label="Aktive Messgrössen"></div><p id="archiveStatus" role="status"></p></div>
  <div class="archive-canvas live-detail-canvas">

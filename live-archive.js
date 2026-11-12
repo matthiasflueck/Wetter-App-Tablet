@@ -37,15 +37,17 @@
  const dialog=$('liveArchiveDialog'),svg=$('archivePlot'),tip=$('archiveTooltip');
  if(!dialog||!Layout)return;
  const canvas=svg.parentElement,station=$('archiveStation'),range=$('archiveRange'),mode=$('archiveMode');
- const status=$('archiveStatus'),metrics=$('archiveMetrics'),scales=$('archiveScales'),view=$('archiveView');
+ const status=$('archiveStatus'),metrics=$('archiveMetrics'),view=$('archiveView');
  const DAY=86400,DRAFT='wetter.liveArchiveDraft',VIEWS='wetter.liveViews';
  const kinds={temperature_c:'thermohygro',humidity_percent:'thermohygro',rain_total_mm:'rain',wind_kmh:'wind',gust_kmh:'wind',wind_direction_degrees:'wind',pressure_hpa:'pressure',solar_wm2:'solar',uv_index:'solar'};
  const rangeOptions=[['1','1 Stunde'],['2','2 Stunden'],['6','6 Stunden'],['24','24 Stunden'],['168','7 Tage'],['720','Monat'],['8760','Jahr'],['custom','Freier Zeitraum']];
  const clone=value=>JSON.parse(JSON.stringify(value));
  const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch(error){return fallback}};
  let config=Layout.defaults(),activeView='',configured=false,opened=false,pan=false,drag=null,plot=null;
- let source=null,available=[],shown=[],stormData=null,shownWindow=null,controller=null,revision=0,windowKey='',loaded=new Map(),refreshTimer;
+ let source=null,available=[],shown=[],stormData=null,shownWindow=null,controller=null,revision=0,loaded=new Map(),refreshTimer,warmTimer,warmController=null,warmTargets=[],warming=false;
  let lastRange='24',lastMode='rolling',frame=0;
+ const expandedScales=new Set();
+ let timeAxisCache=null;
  const savedDraft=read(DRAFT,null);
  if(Layout.valid(savedDraft?.config)){config=savedDraft.config;activeView=savedDraft.view||'';opened=true}
  const legacyColors=read('wetter.liveDetailColors',{});
@@ -120,7 +122,7 @@
   return code?WeatherNasArchive.request('/meteoswiss',{...query,station:code,action:path.slice(1)},{signal}):WeatherNasArchive.request(path,query,{signal});
  }
  function begin(){
-  controller?.abort();controller=new AbortController();
+  controller?.abort();warmController?.abort();clearTimeout(warmTimer);warmTimer=null;warmTargets=[];controller=new AbortController();
   return {id:++revision,signal:controller.signal};
  }
  async function getSource(signal,code){
@@ -138,40 +140,60 @@
   return Layout.definitions.filter(spec=>available.some(item=>item.key===spec.key)||config.assignments[spec.key]);
  }
  function makeControls(){
+  const moreOpen=metrics.querySelector('details.archive-area-card')?.open||false;
   metrics.replaceChildren();
-  for(const spec of controlsSpecs()){
-   const row=document.createElement('label'),title=document.createElement('span'),area=document.createElement('select'),picker=document.createElement('input');
-   row.className='archive-assignment';title.textContent=spec.label;
-   const supported=available.some(item=>item.key===spec.key);
-   if(!supported)title.textContent+=' · keine Daten';
-   for(const [value,label] of [['','Aus'],['A','A'],['B','B'],['C','C']])area.add(new Option(label,value));
-   area.value=config.assignments[spec.key]||'';area.setAttribute('aria-label','Bereich für '+spec.label);
-   area.onchange=()=>{
-    if(area.value)config.assignments[spec.key]=area.value;else delete config.assignments[spec.key];
-    dirty();makeScaleControls();load();
-   };
-   picker.type='color';picker.value=color(spec);picker.setAttribute('aria-label','Farbe '+spec.label);
-   picker.oninput=()=>{config.colors[spec.key]=picker.value;dirty();draw()};
-   row.append(title,area,picker);metrics.append(row);
+  const specs=controlsSpecs();
+  for(const area of [...Layout.areas,'']){
+   const card=document.createElement(area?'section':'details'),heading=document.createElement(area?'h4':'summary'),rows=document.createElement('div');
+   if(!area)card.open=moreOpen;
+   card.className='archive-area-card';card.dataset.area=area;
+   heading.textContent=area?'Bereich '+area:'Weitere Messgrössen ('+specs.filter(item=>!config.assignments[item.key]).length+')';rows.className='archive-card-metrics';
+   for(const spec of specs.filter(item=>(config.assignments[item.key]||'')===area)){
+    const row=document.createElement('div'),title=document.createElement('span'),select=document.createElement('select'),picker=document.createElement('input');
+    row.className='archive-assignment';title.textContent=spec.label;
+    if(!available.some(item=>item.key===spec.key))title.textContent+=' · keine Daten';
+    for(const [value,label] of [['','Aus'],['A','A'],['B','B'],['C','C']])select.add(new Option(label,value));
+    select.value=area;select.setAttribute('aria-label','Bereich für '+spec.label);
+    select.onchange=()=>{
+     if(select.value)config.assignments[spec.key]=select.value;else delete config.assignments[spec.key];
+     dirty();makeControls();load();
+    };
+    picker.type='color';picker.value=color(spec);picker.setAttribute('aria-label','Farbe '+spec.label);
+    picker.oninput=()=>{config.colors[spec.key]=picker.value;dirty();draw()};
+    row.append(title,select,picker);rows.append(row);
+   }
+   const axisControls=document.createElement('div');axisControls.className='archive-card-scales';
+   card.append(heading,rows,axisControls);
+   if(area)metrics.append(card);else if(rows.children.length)metrics.prepend(card);
   }
   makeScaleControls();
  }
  function makeScaleControls(){
-  scales.replaceChildren();
   for(const area of Layout.areas){
+   const container=metrics.querySelector('[data-area="'+area+'"] .archive-card-scales');
+   if(!container)continue;
+   container.replaceChildren();
    const specs=Layout.definitions.filter(spec=>config.assignments[spec.key]===area);
    for(const axisId of new Set(specs.map(spec=>spec.axis))){
-    const matching=specs.filter(spec=>spec.axis===axisId),live=shown.filter(spec=>config.assignments[spec.key]===area&&spec.axis===axisId);
+    const matching=specs.filter(spec=>spec.axis===axisId),live=visibleSeries().filter(spec=>config.assignments[spec.key]===area&&spec.axis===axisId);
     const automatic=Layout.axesFor(live).find(axis=>axis.key===axisId);
-    const fallback=axisId==='pressure'?[900,1100]:axisId==='temperature'?[-20,40]:[0,100];
+    const fallback=axisId==='pressure'?[900,1100]:axisId==='temperature'?[-20,40]:axisId==='direction'?[0,360]:[0,100];
     const saved=config.bounds[area]?.[axisId],bounds=saved||(automatic?[automatic.min,automatic.max]:fallback);
-    const row=document.createElement('div'),label=document.createElement('span'),autoLabel=document.createElement('label');
+    const row=document.createElement('details'),label=document.createElement('summary'),controls=document.createElement('div'),autoLabel=document.createElement('label');
     const auto=document.createElement('input'),min=document.createElement('input'),max=document.createElement('input');
-    row.className='archive-axis-setting';label.textContent=area+' · '+matching.map(spec=>spec.label).join(' / ');
+    row.className='archive-axis-setting';controls.className='archive-axis-controls';
+    const scaleKey=area+'/'+axisId;
+    row.open=expandedScales.has(scaleKey);
+    row.ontoggle=()=>{if(row.open)expandedScales.add(scaleKey);else expandedScales.delete(scaleKey)};
+    const name=matching.map(spec=>spec.label).join(' / ');
+    label.textContent='Skala · '+name+' ('+(matching[0].unit||'Index')+')';
     auto.type='checkbox';auto.checked=!saved;autoLabel.append(auto,'Auto');
-    for(const [input,value,name] of [[min,bounds[0],'Min'],[max,bounds[1],'Max']]){
+    controls.append(autoLabel);
+    for(const [input,value,title] of [[min,bounds[0],'Min'],[max,bounds[1],'Max']]){
+     const field=document.createElement('label');
      input.type='number';input.step='any';input.value=String(Math.round(value*10)/10);input.disabled=auto.checked;
-     input.setAttribute('aria-label',name+' '+label.textContent);input.title=name;input.placeholder=name;
+     input.setAttribute('aria-label',title+' '+area+' · '+name);input.title=title;
+     field.append(document.createTextNode(title),input);controls.append(field);
     }
     const save=()=>{
      if(!auto.checked&&(!min.value||!max.value||!Number.isFinite(+min.value)||!Number.isFinite(+max.value)||+min.value>=+max.value||Math.max(Math.abs(+min.value),Math.abs(+max.value))>1e9)){
@@ -181,9 +203,8 @@
      if(auto.checked)delete config.bounds[area][axisId];else config.bounds[area][axisId]=[+min.value,+max.value];
      min.disabled=max.disabled=auto.checked;dirty();draw();
     };
-    auto.onchange=save;
-    min.oninput=max.oninput=min.onchange=max.onchange=save;
-    row.append(label,autoLabel,min,max);scales.append(row);
+    auto.onchange=save;min.oninput=max.oninput=min.onchange=max.onchange=save;
+    row.append(label,controls);container.append(row);
    }
   }
  }
@@ -191,7 +212,7 @@
   const legend=$('archiveLegend');legend.replaceChildren();
   for(const spec of Layout.definitions.filter(item=>config.assignments[item.key])){
    const item=document.createElement('button');item.type='button';item.style.color=color(spec);
-   item.textContent=config.assignments[spec.key]+' · '+spec.label;item.title=spec.label+' ausblenden';
+   item.textContent=spec.label;item.title=spec.label+' ausblenden';
    item.onclick=()=>{delete config.assignments[spec.key];dirty();makeControls();load()};
    legend.append(item);
   }
@@ -211,45 +232,96 @@
   if(source?.code&&!period&&span>10*DAY)throw Error('Für mehr als zehn Tage bei MeteoSchweiz bitte täglich oder monatlich wählen.');
   return {start,end,observedEnd:Math.min(end,observed),period};
  }
+ function cacheIdentity(spec,window,code){
+  const bucket=spec.key==='lightning_count'||spec.key==='rain_total_mm'?Math.max(60,Math.ceil((window.end-window.start)/140/60)*60):0;
+  return JSON.stringify([code,spec.archive.provider,spec.archive.sensor,spec.key,spec.archive.unit,window.period,bucket]);
+ }
+ function stormSpec(){return {key:'lightning_count',archive:source.thunder}}
+ function stormWindow(window){return {...window,period:window.end-window.start>7*DAY?'day':null}}
+ function visibleSeries(){
+  if(!shownWindow)return [];
+  return shown.map(spec=>({...spec,data:{...spec.data,points:spec.data.points.filter(point=>
+   shownWindow.period?point.last>=shownWindow.start&&point.first<=shownWindow.end:point.time>=shownWindow.start&&point.time<=shownWindow.end
+  )}})).filter(spec=>spec.data.points.length);
+ }
  async function seriesData(spec,window,signal,code,pending){
   const {start,observedEnd,period}=window;
   if(observedEnd<=start)return {points:[]};
+  const cache=loaded,identity=cacheIdentity(spec,window,code);
+  const cached=Layout.cachedSeries(cache.get(identity)||[],start,observedEnd,period);
+  if(cached.covered)return cached.data;
+  const buffered=Layout.bufferWindow(window,code,source?.observedEnd??Date.now()/1000);
   const archive=spec.archive,storm=spec.key==='lightning_count';
   const aggregation=storm?'lightning_events':spec.key==='rain_total_mm'?'rain_increment':period?'calendar':null;
-  const query={provider:archive.provider,sensor:archive.sensor,metric:archive.metric,unit:archive.unit,start,end:observedEnd};
+  const query={provider:archive.provider,sensor:archive.sensor,metric:archive.metric,unit:archive.unit,start:buffered.start,end:buffered.observedEnd};
+  if(query.end<=query.start)return {points:[]};
   if(aggregation)query.aggregation=aggregation;
   if(period)query.period=period;
-  if(storm||spec.key==='rain_total_mm')query.bucket_seconds=Math.max(60,Math.ceil((observedEnd-start)/140));
-  const key=JSON.stringify(query);
-  if(!loaded.has(key)&&!pending.has(key)){
-   const cache=loaded;
-   pending.set(key,request('/series',query,signal,code).then(data=>{cache.set(key,data);return data}));
+  if(storm||spec.key==='rain_total_mm')query.bucket_seconds=Math.max(60,Math.ceil((window.end-window.start)/140/60)*60);
+  const key=JSON.stringify([code,query]);
+  if(!pending.has(key)){
+   pending.set(key,request('/series',query,signal,code).then(data=>{
+    const normalized={...data,points:data.points.map(point=>({...point,
+     value:spec.key==='gust_kmh'?(point.maximum??point.value):point.value,
+     time:point.time??(point.first+point.last)/2,
+    })).filter(point=>Number.isFinite(point.value))};
+    const entries=cache.get(identity)||[];
+    entries.push({start:query.start,end:query.end,data:normalized});
+    cache.delete(identity);cache.set(identity,entries.slice(-6));
+    if(cache.size>36)cache.delete(cache.keys().next().value);
+   }));
   }
-  const data=loaded.get(key)??await pending.get(key);
-  return {...data,points:data.points.map(point=>({...point,
-   value:spec.key==='gust_kmh'?(point.maximum??point.value):point.value,
-   time:point.time??(point.first+point.last)/2,
-  })).filter(point=>Number.isFinite(point.value))};
+  await pending.get(key);
+  return Layout.cachedSeries(cache.get(identity)||[],start,observedEnd,period).data;
+ }
+ function queueWarm(windows){
+  warmTargets=windows;
+  if(warming||warmTimer)return;
+  warmTimer=setTimeout(async()=>{
+   warmTimer=null;
+   if(!source||!dialog.open)return;
+   warming=true;warmController=new AbortController();
+   const signal=warmController.signal,epoch=revision,code=config.station;
+   try{
+    while(warmTargets.length&&!signal.aborted){
+     const target=warmTargets.shift(),now=Date.now()/1000;
+     const window={...target,start:Math.max(code?now-370*DAY:0,target.start),observedEnd:Math.min(target.end,source.observedEnd??now,now)};
+     if(window.observedEnd<=window.start)continue;
+     const pending=new Map(),specs=available.filter(spec=>config.assignments[spec.key]);
+     const jobs=specs.map(spec=>seriesData(spec,window,signal,code,pending));
+     if(config.storm&&source.thunder)jobs.push(seriesData(stormSpec(),stormWindow(window),signal,code,pending));
+     await Promise.allSettled(jobs);
+     if(signal.aborted||epoch!==revision)break;
+     if(drag){
+      shown=shown.map(spec=>({...spec,data:Layout.cachedSeries(loaded.get(cacheIdentity(spec,drag.window,code))||[],drag.window.start,drag.window.observedEnd,drag.window.period).data}));
+      if(config.storm&&source.thunder)stormData=Layout.cachedSeries(loaded.get(cacheIdentity(stormSpec(),stormWindow(drag.window),code))||[],drag.window.start,drag.window.observedEnd,stormWindow(drag.window).period).data;
+      draw();
+     }
+    }
+   }finally{warming=false;if(warmTargets.length&&dialog.open)queueWarm(warmTargets)}
+  },180);
  }
  async function load(force=false){
   if(!dialog.open)return;
   const {id,signal}=begin(),code=config.station;
   try{
    if(force||source?.code!==code){
+    if(source?.code!==code)loaded=new Map();
     source=null;available=[];shown=[];stormData=null;draw();status.textContent='Wetterstation wird geladen …';
     const next=await getSource(signal,code);
     if(id!==revision)return;
     source=next;available=next.series;makeControls();
    }
    const requested=plotWindow(),key=JSON.stringify([code,config.range,config.mode,config.start,config.end,config.resolution]);
-   if(force||key!==windowKey){loaded=new Map();windowKey=key;shown=[];stormData=null}
+   if(force){loaded=new Map();shown=[];stormData=null}
    const window=shownWindow?.key===key&&!force?shownWindow:{...requested,key};
-   shownWindow=window;
+   if(shownWindow?.period!==window.period){shown=[];stormData=null}
+   shownWindow=window;draw();
    const specs=available.filter(spec=>config.assignments[spec.key]);
    status.textContent='Verlauf wird geladen …';
    const pending=new Map(),jobs=specs.map(async spec=>({...spec,data:await seriesData(spec,window,signal,code,pending)}));
    if(config.storm&&source.thunder){
-    jobs.push(seriesData({key:'lightning_count',archive:source.thunder},{...window,period:window.end-window.start>7*DAY?'day':null},signal,code,pending).then(data=>({storm:true,data})));
+    jobs.push(seriesData(stormSpec(),stormWindow(window),signal,code,pending).then(data=>({storm:true,data})));
    }
    const results=await Promise.allSettled(jobs);
    if(id!==revision)return;
@@ -263,9 +335,10 @@
     (window.period==='month'?'Monatswerte':window.period==='day'?'Tageswerte':'Schweizer Ortszeit')+
     (code&&window.period&&shown.some(spec=>spec.key==='rain_total_mm')?' · Regen-Tagesgrenze 06:00 UTC':'');
    draw();makeScaleControls();
+   queueWarm([Layout.shifted(window,-.5),Layout.shifted(window,.5)].map(target=>({...window,...target})));
   }catch(error){
    if(id!==revision)return;
-   shown=[];stormData=null;draw();status.textContent=error.name==='AbortError'?'Das NAS antwortet nicht.':error.message;
+   draw();status.textContent=error.name==='AbortError'?'Das NAS antwortet nicht.':error.message;
   }
  }
  function scheduleDraw(){
@@ -276,11 +349,12 @@
   if(!shownWindow){$('archiveUpperGrip').hidden=$('archiveLowerGrip').hidden=true;return}
   const {start,end,period}=shownWindow;
   const height=Math.max(320,canvas.clientHeight);
-  const areaAxes=Object.fromEntries(Layout.areas.map(area=>[area,Layout.axesFor(shown.filter(spec=>config.assignments[spec.key]===area),config.bounds[area])]));
-  const maxAxes=Math.max(1,...Object.values(areaAxes).map(axes=>axes.length));
-  const width=Math.max(320,canvas.clientWidth,(maxAxes-1)*65+280);
+  const visible=visibleSeries();
+  const areaAxes=drag?.axes||Object.fromEntries(Layout.areas.map(area=>[area,Layout.axesFor(visible.filter(spec=>config.assignments[spec.key]===area),config.bounds[area])]));
+  const columns=Layout.axisColumns(Object.values(areaAxes));
+  const width=Math.max(320,canvas.clientWidth,columns.left+columns.right.reduce((sum,value)=>sum+value,0)+230);
   svg.style.width=width+'px';
-  const layout=Layout.geometry(width,height,config.heights,Layout.areas.map(area=>areaAxes[area].length),config.storm?(end-start<40*DAY?54:32):0);
+  const layout=Layout.geometry(width,height,config.heights,Layout.areas.map(area=>areaAxes[area].length),config.storm?(end-start<40*DAY?54:32):0,columns);
   const {left,right}=layout,x=time=>left+(time-start)/(end-start)*(right-left);
   svg.style.height=layout.height+'px';svg.setAttribute('viewBox',`0 0 ${width} ${layout.height}`);
   const add=(tag,attrs={},text,parent=svg)=>{
@@ -291,12 +365,8 @@
   };
   add('rect',{x:left,y:layout.top,width:right-left,height:layout.areas.B.bottom-layout.top,class:'plot-background'});
   add('rect',{x:left,y:layout.areas.C.top,width:right-left,height:layout.areas.C.bottom-layout.areas.C.top,class:'plot-background'});
-  for(let i=1;i<8;i++){
-   const xx=left+(right-left)*i/8;
-   for(const box of [{top:layout.top,bottom:layout.areas.B.bottom},layout.areas.C])
-    add('line',{x1:xx,x2:xx,y1:box.top,y2:box.bottom,class:'live-detail-grid'});
-  }
-  const defs=add('defs'),allMarks=add('g'),areaMarks={};
+  const defs=add('defs'),grid=add('g',{'data-layer':'grid'}),allMarks=add('g',{'data-layer':'measurements'}),areaMarks={};
+  const timeLayers=drawTimeAxis(add,layout,x,start,end,defs,grid);
   let stormLayer=null;
   for(const area of Layout.areas){
    const box=layout.areas[area],clip=add('clipPath',{id:'live-detail-clip-'+area},undefined,defs);
@@ -304,21 +374,23 @@
    const clipped=add('g',{'clip-path':'url(#live-detail-clip-'+area+')'},undefined,allMarks);
    areaMarks[area]=add('g',{},undefined,clipped);
    const axes=areaAxes[area],ticks=area==='B'?2:4;
-   for(let i=0;i<=ticks;i++){
-    const fraction=i/ticks,yy=box.bottom-8-fraction*(box.bottom-box.top-34);
-    // No baseline or frame separates A and B.
-    if(i>0&&i<ticks)add('line',{x1:left,x2:right,y1:yy,y2:yy,class:'live-detail-grid'});
-    axes.forEach((axis,index)=>{
-     const labelX=index?right+6+(index-1)*(width<700?48:65):left-6;
-     add('text',{x:labelX,y:yy+4,'text-anchor':index?'start':'end',fill:color(axis.series[0])},format(axis.min+fraction*(axis.max-axis.min)));
-     if(i===ticks)add('text',{x:labelX,y:box.top+11,'text-anchor':index?'start':'end',fill:color(axis.series[0]),class:'archive-axis-unit'},axis.unit);
-    });
-   }
+   axes.forEach((axis,index)=>{
+    const values=axis.key==='direction'?Layout.directionTicks(axis.min,axis.max,box.bottom-box.top-34):
+     Array.from({length:ticks+1},(_,i)=>({value:axis.min+i/ticks*(axis.max-axis.min),label:format(axis.min+i/ticks*(axis.max-axis.min))}));
+    const ink=axis.key==='direction'?'var(--text)':color(axis.series[0]),labelX=layout.axisX[index];
+    for(const tick of values){
+     const fraction=(tick.value-axis.min)/(axis.max-axis.min);
+     const yy=axis.key==='direction'?box.top+26+fraction*(box.bottom-box.top-34):box.bottom-8-fraction*(box.bottom-box.top-34);
+     if(index===0&&fraction>0&&fraction<1)add('line',{x1:left,x2:right,y1:yy,y2:yy,class:'live-detail-grid'},undefined,grid);
+     add('text',{x:labelX,y:yy+4,'text-anchor':index?'start':'end',fill:ink},tick.label);
+    }
+    add('text',{x:labelX,y:box.top+11,'text-anchor':index?'start':'end',fill:ink,class:'archive-axis-unit'},axis.key==='direction'?'Richt.':axis.unit);
+   });
    if(configured)add('text',{x:left+6,y:box.top+15,class:'archive-area-label'},'Bereich '+area);
-   const specs=shown.filter(spec=>config.assignments[spec.key]===area),bars=specs.filter(spec=>spec.type==='bar');
+   const specs=shown.filter(spec=>config.assignments[spec.key]===area&&axes.some(axis=>axis.key===spec.axis)),bars=specs.filter(spec=>spec.type==='bar');
    for(const spec of [...bars,...specs.filter(spec=>spec.type!=='bar')]){
     const axis=axes.find(item=>item.key===spec.axis),marks=areaMarks[area];
-    const y=value=>box.bottom-8-(value-axis.min)/(axis.max-axis.min)*(box.bottom-box.top-34);
+    const y=value=>axis.key==='direction'?box.top+26+(value-axis.min)/(axis.max-axis.min)*(box.bottom-box.top-34):box.bottom-8-(value-axis.min)/(axis.max-axis.min)*(box.bottom-box.top-34);
     const points=spec.data.points,stroke=color(spec),coord=(point,value=point.value)=>[x(point.time),y(value)].join(',');
     if(spec.type==='bar'){
      for(const point of points){
@@ -345,7 +417,6 @@
     }
    }
   }
-  drawTimeAxis(add,layout,x,start,end);
   const storms=(stormData?.points||[]).filter(point=>point.value>0);
   if(config.storm){
    const clip=add('clipPath',{id:'live-detail-storm-clip'},undefined,defs);
@@ -364,39 +435,45 @@
    }
   }
   const cursor=add('line',{x1:left,x2:left,y1:config.storm?1:layout.top,y2:layout.bottom,class:'live-mini-cursor',visibility:'hidden','pointer-events':'none'});
-  plot={...layout,width,start,end,x,cursor,layers:[...Object.values(areaMarks),...(stormLayer?[stormLayer]:[])],storms,budget:Math.max(230,height-layout.top-74)};
+  plot={...layout,width,start,end,x,cursor,axes:areaAxes,layers:[...Object.values(areaMarks),...(stormLayer?[stormLayer]:[]),...timeLayers],storms,budget:Math.max(230,height-layout.top-74)};
   for(const [id,position,value] of [['archiveUpperGrip',layout.separator,config.heights.upper],['archiveLowerGrip',layout.bottom+4,config.heights.lower]]){
    const grip=$(id);grip.hidden=false;grip.style.top=position+'px';grip.style.left=left+'px';grip.style.width=(right-left)+'px';grip.setAttribute('aria-valuenow',String(Math.round(value*100)));
   }
+  if(drag)applyPan(drag.dx||0);
  }
- function drawTimeAxis(add,layout,x,start,end){
-  const span=end-start,selection=config.range==='custom'?(span>150*DAY?'8760':span>14*DAY?'720':span>=DAY?'168':'6'):config.range;
-  const ticks=WeatherLiveCardData.timeAxis(start,end,selection),base=layout.bottom+8,width=layout.right-layout.left;
-  if(ticks.yearMode||ticks.monthMode){
-   for(const group of ticks.groups){
-    if(group.start>start)add('line',{x1:x(group.start),x2:x(group.start),y1:base+2,y2:base+13,class:'live-detail-grid'});
-    add('text',{x:x(group.time),y:base+14,'text-anchor':'middle'},group.label);
+ function drawTimeAxis(add,layout,x,start,end,defs,grid){
+  const span=end-start,padding=span<=62*DAY?span:0;
+  const tickKey=[start,end,layout.right-layout.left].join('|');
+  if(timeAxisCache?.key!==tickKey)timeAxisCache={key:tickKey,ticks:Layout.timeTicks(start-padding,end+padding,(layout.right-layout.left)*(padding?3:1),span)};
+  const ticks=timeAxisCache.ticks;
+  const base=layout.bottom+8,layers=[];
+  for(const [name,box] of [['upper',{top:layout.top,bottom:layout.areas.B.bottom}],['lower',layout.areas.C]]){
+   const clip=add('clipPath',{id:'live-detail-grid-'+name},undefined,defs);
+   add('rect',{x:layout.left,y:box.top,width:layout.right-layout.left,height:box.bottom-box.top},undefined,clip);
+   const clipped=add('g',{'clip-path':'url(#live-detail-grid-'+name+')'},undefined,grid),lines=add('g',{},undefined,clipped);
+   layers.push(lines);
+   const positions=new Map(ticks.ticks.map(tick=>[tick.time,tick.major]));
+   for(const midnight of ticks.midnights)positions.set(midnight,true);
+   for(const [time,major] of positions){
+    const xx=x(time);
+    add('line',{x1:xx,x2:xx,y1:box.top,y2:box.bottom,class:'live-detail-grid live-time-grid'+(major?' is-midnight':''),'data-time':time},undefined,lines);
    }
-   if(ticks.yearMode){
-    const step=Math.max(1,Math.ceil(ticks.months.length*35/width));
-    ticks.months.forEach((tick,index)=>{if(index%step)return;const xx=x(tick.time);add('text',{x:xx,y:base+30,transform:`rotate(-45 ${xx} ${base+30})`,'text-anchor':'end'},tick.label)});
-   }else{
-    const step=Math.max(1,Math.ceil(ticks.days.length*34/width));
-    ticks.days.forEach((tick,index)=>{if(index%step)return;add('text',{x:x(tick.time),y:base+34,'text-anchor':'middle'},tick.date)});
-   }
-  }else if(ticks.days.length){
-   const step=Math.max(1,Math.ceil(ticks.days.length*46/width));
-   for(const time of ticks.midnights)add('line',{x1:x(time),x2:x(time),y1:base,y2:base+8,class:'live-detail-grid'});
-   ticks.days.forEach((tick,index)=>{if(index%step)return;
-    add('text',{x:x(tick.time),y:base+20,'text-anchor':'middle'},tick.weekday);
-    add('text',{x:x(tick.time),y:base+35,'text-anchor':'middle'},tick.date);
-   });
-  }else{
-   ticks.times.forEach((time,index)=>{
-    const xx=x(time);add('text',{x:xx,y:base+22,'text-anchor':index===0?'start':index===ticks.times.length-1?'end':'middle'},dateLabel(time,{hour:'2-digit',minute:'2-digit'}));
-   });
-   add('text',{x:(layout.left+layout.right)/2,y:base+43,'text-anchor':'middle'},dateLabel((start+end)/2,{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}));
   }
+  const clip=add('clipPath',{id:'live-detail-time-labels'},undefined,defs);
+  add('rect',{x:layout.left-1,y:base,width:layout.right-layout.left+2,height:54},undefined,clip);
+  const clipped=add('g',{'clip-path':'url(#live-detail-time-labels)'}),labels=add('g',{},undefined,clipped);
+  layers.push(labels);
+  for(const tick of ticks.ticks){
+   const xx=x(tick.time),yy=base+20;
+   add('line',{x1:xx,x2:xx,y1:base,y2:base+5,class:'live-detail-grid','data-time':tick.time},undefined,labels);
+   add('text',{x:xx,y:yy,'text-anchor':ticks.rotate?'end':'middle',transform:ticks.rotate?`rotate(-40 ${xx} ${yy})`:'','data-time':tick.time,class:'archive-time-label'},tick.label,labels);
+  }
+  for(const group of ticks.groups){
+   const first=Math.max(start,group.start??start),last=Math.min(end,group.end??end);
+   const center=last>first?(first+last)/2:group.time;
+   add('text',{x:x(center),y:base+47,'text-anchor':'middle',class:'archive-date-group'},group.label,labels);
+  }
+  return layers;
  }
  function pointer(event){
   const matrix=svg.getScreenCTM();if(!matrix)return null;
@@ -420,7 +497,7 @@
    const tolerance=shownWindow.period?0:Math.max(spec.data.bucket_seconds||600,900);
    if(target<point.first-tolerance||target>point.last+tolerance)continue;
    const row=document.createElement('div');row.style.borderLeftColor=color(spec);row.style.color=color(spec);
-   row.textContent=config.assignments[spec.key]+' · '+spec.label+' '+format(point.value)+(spec.unit?' '+spec.unit:'')+
+   row.textContent=spec.label+' '+(spec.axis==='direction'?Layout.compass(point.value)+' · ':'')+format(point.value)+(spec.unit?' '+spec.unit:'')+
     (shownWindow.period&&spec.key==='temperature_c'?' · Min '+format(point.minimum??point.value)+' / Max '+format(point.maximum??point.value):'')+
     (point.incomplete?' · unvollständig':'');
    tip.append(row);
@@ -441,20 +518,29 @@
   if(event.button!==0||!plot)return;
   const point=pointer(event);if(!point||point.x<plot.left||point.x>plot.right)return;
   svg.setPointerCapture(event.pointerId);
-  if(pan){drag={id:event.pointerId,x:point.x,window:shownWindow};hideTip()}
+  if(pan){drag={id:event.pointerId,x:point.x,dx:0,width:plot.right-plot.left,axes:plot.axes,window:shownWindow};hideTip()}
   else showTip(event);
  };
+ function applyPan(move){
+  if(!plot)return;
+  for(const layer of plot.layers)layer.setAttribute('transform','translate('+move+',0)');
+ }
  svg.onpointermove=event=>{
   if(drag&&plot){
    const point=pointer(event);if(!point)return;
-   for(const layer of plot.layers)layer.setAttribute('transform','translate('+(point.x-drag.x)+',0)');
+   drag.dx=point.x-drag.x;applyPan(drag.dx);
+   if(Math.abs(drag.dx)>drag.width*.2){
+    const target=Layout.shifted(drag.window,-drag.dx/drag.width);
+    queueWarm([{...drag.window,...target}]);
+   }
   }else showTip(event);
  };
  function finishPan(event,cancelled){
   if(drag&&plot){
-   const point=pointer(event),move=point?point.x-drag.x:0,window=drag.window;drag=null;
-   for(const layer of plot.layers)layer.removeAttribute('transform');
-   if(!cancelled&&Math.abs(move)>4)showWindow(Layout.shifted(window,-move/(plot.right-plot.left)));
+   const point=pointer(event),move=point?point.x-drag.x:drag.dx,window=drag.window,width=drag.width;
+   drag=null;
+   if(!cancelled&&Math.abs(move)>4)showWindow(Layout.shifted(window,-move/width));
+   else draw();
   }
   if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);
  }
@@ -542,7 +628,7 @@
  };
  $('closeLiveArchive').onclick=()=>dialog.close();
  dialog.addEventListener('close',()=>{
-  clearInterval(refreshTimer);revision++;controller?.abort();hideTip();drag=null;storeDraft();
+  clearInterval(refreshTimer);clearTimeout(warmTimer);warmTimer=null;warmTargets=[];warmController?.abort();revision++;controller?.abort();hideTip();drag=null;storeDraft();
  });
  window.addEventListener('weather-live-connection-changed',()=>{if(dialog.open)load(true)});
  window.addEventListener('weather-thunder-changed',()=>{if(dialog.open)draw()});
