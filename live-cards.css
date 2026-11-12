@@ -498,3 +498,54 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=pressure] .live-pressur
 
 .sync-options { display: grid; gap: 4px; margin: 14px 0; }
 .sync-options small { display: block; color: var(--muted); margin-top: 3px; }
+
+/* Live workbench: one small toolbar, shared time axis, optional configuration. */
+#liveArchiveDialog.live-workbench { padding: 8px 10px; gap: 5px; }
+#liveArchiveDialog .archive-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+#liveArchiveDialog .archive-toolbar :is(button,select) { padding: 5px 8px; min-height: 32px; font-size: 12px; }
+#liveArchiveDialog .archive-toolbar #archiveStation { max-width: min(240px,24vw); }
+#liveArchiveDialog .archive-toolbar #archiveView { max-width: min(190px,20vw); }
+#liveArchiveDialog .archive-toolbar #closeLiveArchive { margin-left: auto; }
+#liveArchiveDialog .archive-toolbar [aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
+#liveArchiveDialog #archiveConfiguration { max-height: 36dvh; overflow: auto; flex: none; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+#liveArchiveDialog .archive-config-tools { display: flex; gap: 6px 10px; align-items: end; flex-wrap: wrap; }
+#liveArchiveDialog .archive-config-tools label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+#liveArchiveDialog .archive-config-tools :is(button,input,select) { padding: 5px 7px; font-size: 12px; min-height: 30px; }
+#liveArchiveDialog .archive-config-tools input[type=text] { width: 150px; }
+#liveArchiveDialog .archive-config-grid { display: grid; grid-template-columns: minmax(250px,1fr) minmax(300px,1.4fr); gap: 12px; margin-top: 9px; }
+#liveArchiveDialog #archiveMetrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); align-content: start; gap: 3px 10px; margin: 0; }
+#liveArchiveDialog .archive-assignment { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+#liveArchiveDialog .archive-assignment > span { flex: 1; }
+#liveArchiveDialog .archive-assignment select { min-height: 30px; padding: 3px 6px; font-size: 12px; }
+#liveArchiveDialog .archive-assignment input[type=color] { width: 28px; min-width: 28px; height: 28px; padding: 2px; }
+#liveArchiveDialog #archiveScales { display: grid; grid-template-columns: repeat(auto-fit,minmax(285px,1fr)); gap: 3px 10px; margin: 0; align-content: start; }
+#liveArchiveDialog .archive-axis-setting { display: grid; grid-template-columns: minmax(80px,1fr) 52px 65px 65px; align-items: center; gap: 4px; font-size: 11px; }
+#liveArchiveDialog .archive-axis-setting > label { display: flex; align-items: center; gap: 3px; }
+#liveArchiveDialog .archive-axis-setting input[type=number] { min-width: 0; width: 100%; box-sizing: border-box; padding: 4px; min-height: 30px; font-size: 11px; }
+#liveArchiveDialog .archive-axis-setting input[type=checkbox] { margin: 0; }
+#liveArchiveDialog .archive-meta { display: flex; align-items: center; gap: 5px 12px; flex-wrap: wrap; min-height: 18px; }
+#liveArchiveDialog #archiveStatus { margin: 0; font-size: 11px; }
+#liveArchiveDialog #archiveLegend { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; font-size: 11px; }
+#liveArchiveDialog #archiveLegend button { border: 0; border-radius: 0; padding: 0; background: none; font-size: 11px; min-height: 22px; }
+#liveArchiveDialog #archiveLegend button::before { content: ''; display: inline-block; width: 12px; height: 2px; background: currentColor; margin-right: 4px; vertical-align: middle; }
+#liveArchiveDialog .live-detail-canvas { flex: 1 0 310px; min-height: 310px; overflow: auto; border: 0; border-radius: 0; background: transparent; touch-action: none; }
+#liveArchiveDialog #archivePlot { position: relative; inset: auto; display: block; max-height: none; user-select: none; }
+#liveArchiveDialog .live-detail-canvas.is-panning { cursor: grab; }
+#liveArchiveDialog .live-detail-canvas.is-panning:active { cursor: grabbing; }
+#liveArchiveDialog .archive-resize { position: absolute; z-index: 2; height: 12px; min-height: 12px; margin-top: -6px; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: ns-resize; touch-action: none; }
+#liveArchiveDialog .archive-resize::before { content: ''; display: block; height: 1px; background: var(--line); }
+#liveArchiveDialog .archive-resize::after { content: ''; position: absolute; width: 36px; height: 3px; top: 5px; left: calc(50% - 18px); border-radius: 3px; background: var(--muted); opacity: .6; }
+#liveArchiveDialog .archive-resize:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+#liveArchiveDialog .archive-area-label { font-size: 10px; opacity: .65; }
+#liveArchiveDialog .archive-axis-unit { font-size: 10px; }
+#liveArchiveDialog .archive-storm-icon { font: 18px system-ui; fill: #ff8c00; }
+#liveArchiveDialog .archive-storm-icon.is-strong { fill: #cc0000; filter: drop-shadow(0 0 3px #cc000080); }
+#liveArchiveDialog .archive-storm-count { font-size: 9px; fill: #ff8c00; }
+#liveArchiveDialog #archiveTooltip { z-index: 4; max-width: min(380px,88%); font-size: 14px; }
+@media (max-width: 760px) {
+ #liveArchiveDialog .archive-config-grid { grid-template-columns: 1fr; }
+ #liveArchiveDialog .archive-toolbar #archiveStation { max-width: 180px; }
+ #liveArchiveDialog .archive-toolbar #archiveView { max-width: 150px; }
+ #liveArchiveDialog #archiveConfigure { font-size: 11px; }
+}
+#liveArchiveDialog .archive-storm-distance { font-size: 9px; fill: #ff7777; }

@@ -45,6 +45,8 @@
  add('analysisDisplay.rightAxes','Rechte Analyseachsen anzeigen',bool);
  for(const [key,label] of Object.entries(names))add('analysisDisplay.colors.'+key,'Analysefarbe · '+label,color);
  add('measurementExport.columns','Spalten des Messdatenexports',array(id));
+ const layout=typeof module!=='undefined'?require('./live-layout.js'):root.WeatherLiveLayout;
+ add('liveViews','Gespeicherte Live-Ansichten',value=>layout?.validViews(value));
  const rawKeys=new Set(['annualNorm','comparisonNorm']);
  const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
  const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
