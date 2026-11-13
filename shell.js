@@ -19,10 +19,11 @@ function applyDiagramBackground(){
  // Resolve to an ordinary RGB colour identically in Safari and Android Chrome.
  const surface=preferences.theme==='dark'?window.WeatherLiveLayout.mixColor(color,'#101820',.12):color;
  document.documentElement.style.setProperty('--chart-surface',preferences.diagramBackgroundEnabled?surface:'transparent');
- const liveColor=preferences.liveHistoryBackgroundColor||surface;
+ const liveColor=preferences.liveHistoryBackgroundColor||(preferences.theme==='light'?'#e5edf2':'#233342');
  document.documentElement.style.setProperty('--live-history-surface',preferences.liveHistoryBackgroundEnabled?liveColor:'transparent');
  document.documentElement.style.setProperty('--live-history-stripe-opacity',preferences.liveHistoryStripes?'.09':'0');
  $('diagramBackgroundEnabled').checked=preferences.diagramBackgroundEnabled;$('diagramBackgroundColor').value=color;$('diagramBackgroundColor').disabled=!preferences.diagramBackgroundEnabled;
+ $('liveHistoryColorCode').textContent=liveColor.toUpperCase();for(const button of document.querySelectorAll('[data-live-background]'))button.setAttribute('aria-pressed',String(button.dataset.liveBackground===liveColor));
  $('liveHistoryBackgroundEnabled').checked=preferences.liveHistoryBackgroundEnabled;$('liveHistoryBackgroundColor').value=liveColor;$('liveHistoryBackgroundColor').disabled=!preferences.liveHistoryBackgroundEnabled;$('liveHistoryStripes').checked=preferences.liveHistoryStripes;
 }
 applyDiagramBackground();
@@ -31,7 +32,8 @@ $('diagramBackgroundDefault').onclick=()=>{preferences.diagramBackgroundColor=''
 $('diagramBackgroundColor').oninput=()=>{preferences.diagramBackgroundColor=$('diagramBackgroundColor').value;applyDiagramBackground();savePreferences()};
 for(const key of ['liveHistoryBackgroundEnabled','liveHistoryStripes'])$(key).onchange=()=>{preferences[key]=$(key).checked;applyDiagramBackground();savePreferences()};
 $('liveHistoryBackgroundColor').oninput=()=>{preferences.liveHistoryBackgroundColor=$('liveHistoryBackgroundColor').value;applyDiagramBackground();savePreferences()};
-$('liveHistoryBackgroundDefault').onclick=()=>{preferences.liveHistoryBackgroundColor='';preferences.liveHistoryBackgroundEnabled=preferences.diagramBackgroundEnabled;applyDiagramBackground();savePreferences()};
+$('liveHistoryBackgroundDefault').onclick=()=>{preferences.liveHistoryBackgroundColor=preferences.theme==='light'?'#e5edf2':'#233342';preferences.liveHistoryBackgroundEnabled=true;applyDiagramBackground();savePreferences()};
+for(const button of document.querySelectorAll('[data-live-background]'))button.onclick=()=>{preferences.liveHistoryBackgroundColor=button.dataset.liveBackground;preferences.liveHistoryBackgroundEnabled=true;applyDiagramBackground();savePreferences()};
 function navigate(){const requested=location.hash.slice(1),route=requested==='analysis'?'live-history':workspaces.includes(requested)?requested:preferences.startWorkspace;if(requested!==route)history.replaceState(null,'','#'+route);document.body.classList.toggle('live-history-active',route==='live-history');window.scrollTo(0,0);for(const section of document.querySelectorAll('[data-view]'))section.hidden=section.dataset.view!==route;for(const a of $('navigation').querySelectorAll('a')){if(a.hash==='#'+route)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')}if(window.matchMedia('(max-width:850px)').matches){$('navigation').classList.remove('open');applyMenu()}}
 function applyMenu(){const mobile=window.matchMedia('(max-width:850px)').matches;const expanded=mobile?$('navigation').classList.contains('open'):!document.body.classList.contains('nav-collapsed');$('navToggle').setAttribute('aria-expanded',String(expanded));$('menuToggle').setAttribute('aria-expanded',String(expanded));$('menuToggle').setAttribute('aria-label',expanded?'Menü einklappen':'Menü ausklappen');$('navToggle').textContent=expanded?'‹':'›';$('navToggle').setAttribute('aria-label',expanded?'Menü einklappen':'Menü ausklappen');$('navToggle').title=expanded?'Menü einklappen':'Menü ausklappen';document.body.classList.toggle('nav-open',expanded)}
 $('menuToggle').onclick=$('navToggle').onclick=()=>{if(window.matchMedia('(max-width:850px)').matches)$('navigation').classList.toggle('open');else document.body.classList.toggle('nav-collapsed');applyMenu()};window.addEventListener('resize',applyMenu);applyMenu();window.addEventListener('hashchange',navigate);navigate();
