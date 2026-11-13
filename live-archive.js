@@ -59,6 +59,11 @@
  function smoothingButton(){$('archiveSmoothing').textContent='∿ '+smoothingLabels[smoothing];$('archiveSmoothing').setAttribute('aria-pressed',String(smoothing>0))}
  smoothingButton();
  $('archiveSmoothing').onclick=()=>{smoothing=(smoothing+1)%6;try{localStorage.setItem('wetter.liveSmoothing',String(smoothing))}catch(error){}smoothingButton();draw()};
+ const statsButton=$('archiveStatsToggle');
+ let statisticsVisible=read('wetter.liveHistoryStatistics',true)!==false;
+ function reflectStatistics(){statsButton.setAttribute('aria-pressed',String(statisticsVisible));$('archiveStatistics').hidden=!statisticsVisible}
+ statsButton.onclick=()=>{statisticsVisible=!statisticsVisible;try{localStorage.setItem('wetter.liveHistoryStatistics',JSON.stringify(statisticsVisible))}catch(error){}reflectStatistics();scheduleDraw()};
+ reflectStatistics();
  const touchPoints=new Map();let pinch=null,suppressTouch=false,wheelTimer;
  let lastRange='24',lastMode='rolling',frame=0;
  const expandedScales=new Set();
@@ -435,7 +440,7 @@
      const groups=period?Layout.calendarSegments(points,period):WeatherLiveCardData.segments(points,Math.max(900,(spec.data.bucket_seconds||600)*2),spec.key==='temperature_c');
      for(const original of groups){
       const fields=period&&spec.key==='temperature_c'&&original.every(p=>Number.isFinite(p.minimum)&&Number.isFinite(p.maximum))?['value','minimum','maximum']:['value'];
-      const group=WeatherLiveCardData.smoothSegment(original,[0,1,2,4,8,16][smoothing],fields);
+      const group=WeatherLiveCardData.smoothSegment(original,Layout.smoothingRadius(smoothing,period,spec.data.bucket_seconds),fields);
       if(period&&spec.key==='temperature_c'&&group.length>1&&group.every(point=>Number.isFinite(point.minimum)&&Number.isFinite(point.maximum))){
        add('polygon',{points:group.map(point=>coord(point,point.maximum)).concat([...group].reverse().map(point=>coord(point,point.minimum))).join(' '),fill:stroke,opacity:.16},undefined,marks);
        for(const field of ['minimum','maximum'])add('path',{d:'M'+group.map(point=>coord(point,point[field])).join('L'),fill:'none',stroke:field==='maximum'?'#ff7777':'#77a9ef','stroke-width':1.2},undefined,marks);
@@ -531,13 +536,19 @@
    const tolerance=shownWindow.period?0:Math.max(spec.data.bucket_seconds||600,900);
    if(target<point.first-tolerance||target>point.last+tolerance)continue;
    const row=document.createElement('div');row.style.borderLeftColor=color(spec);row.style.color=color(spec);
-   row.textContent=spec.label+' '+(spec.axis==='direction'?Layout.compass(point.value)+' · ':'')+format(point.value)+(spec.unit?' '+spec.unit:'')+
-    (shownWindow.period&&spec.key==='temperature_c'?' · Min '+format(point.minimum??point.value)+' / Max '+format(point.maximum??point.value):'')+
-    (point.incomplete?' · unvollständig':'');
+   const label=document.createElement('span');label.className='archive-tip-label';label.textContent=spec.label;
+   const value=document.createElement('b');value.className='archive-tip-value';
+   value.textContent=(spec.axis==='direction'?Layout.compass(point.value)+' · ':'')+format(point.value);
+   const unit=document.createElement('small');unit.textContent=spec.unit||'';
+   row.append(label,value,unit);
+   if(shownWindow.period&&spec.key==='temperature_c'||point.incomplete){
+    const detail=document.createElement('small');detail.className='archive-tip-detail';
+    detail.textContent=(shownWindow.period&&spec.key==='temperature_c'?'Min '+format(point.minimum??point.value)+' / Max '+format(point.maximum??point.value):'')+(point.incomplete?' · unvollständig':'');row.append(detail);
+   }
    tip.append(row);
   }
   const storm=plot.storms.find(point=>target>=point.first&&target<=point.last);
-  if(storm){const row=document.createElement('div');row.textContent='⚡ '+dateLabel(storm.time,{day:'2-digit',month:'2-digit'})+' · '+format(storm.value,0)+' Blitze'+(Number.isFinite(storm.nearest)?' · '+format(storm.nearest)+' km':'');tip.append(row)}
+  if(storm){const row=document.createElement('div');row.className='archive-tip-storm';row.textContent='⚡ '+dateLabel(storm.time,{day:'2-digit',month:'2-digit'})+' · '+format(storm.value,0)+' Blitze'+(Number.isFinite(storm.nearest)?' · '+format(storm.nearest)+' km':'');tip.append(row)}
   tip.hidden=false;tip.style.left=Math.max(4,Math.min(position.x+12,plot.width-tip.offsetWidth-6))+'px';
   tip.style.top=Math.max(4,Math.min(canvas.scrollTop+12,plot.bottom-tip.offsetHeight))+'px';
  }

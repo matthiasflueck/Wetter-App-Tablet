@@ -57,6 +57,10 @@
    axis.max=Math.max(axis.min+1,axis.max+pad);
    if(axis.key==='direction'){axis.min=0;axis.max=360}
    if(pair(bounds[axis.key]))[axis.min,axis.max]=bounds[axis.key];
+   else if(axis.key!=='direction'){
+    const step=tickStep(axis.min,axis.max,4,['temperature','humidity','pressure','solar','wind'].includes(axis.key));
+    axis.min=Math.floor(axis.min/step)*step;axis.max=Math.ceil(axis.max/step)*step;
+   }
   }
   return [...axes.values()];
  }
@@ -75,11 +79,25 @@
   return {left,right,axisX,top,separator,bottom:cBottom,height:cBottom+axisHeight,
    areas:{A:{top,bottom:split},B:{top:split,bottom:top+upper},C:{top:cTop,bottom:cBottom}}};
  }
+ function tickStep(min,max,count,integer=false){
+  const raw=(max-min)/Math.max(1,count);
+  if(!Number.isFinite(raw)||raw<=0)return 1;
+  const power=10**Math.floor(Math.log10(raw)),fraction=raw/power;
+  const nice=(integer?[1,2,5,10]:[1,2,2.5,5,10]).find(value=>value>=fraction-1e-9)*power;
+  return integer?Math.max(1,Math.ceil(nice)):nice;
+ }
  function numericTicks(min,max,count,integer=false){
-  if(!integer)return Array.from({length:count+1},(_,i)=>min+i/count*(max-min));
-  const step=Math.max(1,Math.ceil((max-min)/count)),values=[];
-  for(let v=Math.ceil(min/step)*step;v<=max;v+=step)values.push(v);
+  const step=tickStep(min,max,count,integer),values=[];
+  for(let v=Math.ceil(min/step)*step;v<=max+step*1e-8;v+=step)values.push(Number(v.toPrecision(12)));
   return values;
+ }
+ function smoothingRadius(level,period,bucketSeconds=600){
+  const strength=[0,1,2,4,8,16][Math.max(0,Math.min(5,level))];
+  if(!strength)return 0;
+  // Calendar samples already represent a complete day or month; preserve seasonal peaks.
+  if(period==='month')return Math.min(3,Math.max(1,Math.round(strength/5)));
+  if(period==='day')return Math.min(7,Math.max(1,Math.round(strength/2)));
+  return Math.max(1,Math.min(48,Math.round(strength*Math.sqrt(600/Math.max(60,bucketSeconds)))));
  }
  function statistics(spec){
   const points=spec.data.points.filter(p=>Number.isFinite(p.value)).sort((a,b)=>a.time-b.time);
@@ -192,7 +210,7 @@
   const latest=entries.at(-1)?.data||{points:[]};
   return {covered,data:{...latest,points:[...points.values()].sort((a,b)=>a.time-b.time)}};
  }
- const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,zoomed,calendarSegments,shifted,compass,directionTicks,axisColumns,numericTicks,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
+ const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,zoomed,calendarSegments,shifted,compass,directionTicks,axisColumns,numericTicks,smoothingRadius,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherLiveLayout=api;
 })(typeof window==='undefined'?this:window);
