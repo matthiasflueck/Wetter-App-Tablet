@@ -36,6 +36,7 @@
  const $=id=>document.getElementById(id),Layout=window.WeatherLiveLayout;
  const dialog=$('liveArchiveDialog'),svg=$('archivePlot'),tip=$('archiveTooltip');
  if(!dialog||!Layout)return;
+ const isActive=()=>location.hash==='#live-history';let workspaceActive=false;
  const canvas=svg.parentElement,station=$('archiveStation'),range=$('archiveRange'),mode=$('archiveMode');
  const status=$('archiveStatus'),metrics=$('archiveMetrics'),view=$('archiveView');
  let noticeTimer;
@@ -307,7 +308,7 @@
   if(warming||warmTimer)return;
   warmTimer=setTimeout(async()=>{
    warmTimer=null;
-   if(!source||!dialog.open)return;
+   if(!source||!isActive())return;
    warming=true;warmController=new AbortController();
    const signal=warmController.signal,epoch=revision,code=config.station;
    try{
@@ -326,11 +327,11 @@
       draw();
      }
     }
-   }finally{warming=false;if(warmTargets.length&&dialog.open)queueWarm(warmTargets)}
+   }finally{warming=false;if(warmTargets.length&&isActive())queueWarm(warmTargets)}
   },180);
  }
  async function load(force=false){
-  if(!dialog.open)return;
+  if(!isActive())return;
   const {id,signal}=begin(),code=config.station;
   try{
    if(force||source?.code!==code){
@@ -686,21 +687,26 @@
  $('archiveStorm').onchange=()=>{config.storm=$('archiveStorm').checked;dirty();load()};
  $('archiveBRatio').onchange=()=>{config.heights.b=+$('archiveBRatio').value;dirty();draw()};
  $('archiveRefresh').onclick=()=>load(true);
- $('openLiveArchive').onclick=()=>{
-  if(dialog.open)return;
+ $('openLiveArchive').onclick=()=>{location.hash='live-history'};
+ function enterWorkspace(){
+  if(!isActive()||workspaceActive)return;
+  workspaceActive=true;
   if(!opened){
    config.station=$('liveStation').value;config.range=$('liveCardRange').value;config.mode=$('liveRangeMode').value;opened=true;
   }
   if(config.range!=='custom')lastRange=config.range;
   lastMode=config.mode;fillViews();$('archiveViewName').value=views()[activeView]?.name||'';
-  reflect();setConfiguration(false);dialog.showModal();load(true);
-  refreshTimer=setInterval(()=>{if(!document.hidden&&config.range!=='custom'&&!drag&&!pinch)load(true)},300000);
- };
- $('closeLiveArchive').onclick=()=>dialog.close();
- dialog.addEventListener('close',()=>{
+  reflect();setConfiguration(false);load(true);
+  refreshTimer=setInterval(()=>{if(!document.hidden&&config.range!=='custom'&&!drag&&!pinch&&isActive())load(true)},300000);
+ }
+ function leaveWorkspace(){
+  if(!workspaceActive)return;workspaceActive=false;
   clearInterval(refreshTimer);clearTimeout(wheelTimer);touchPoints.clear();pinch=null;suppressTouch=false;clearTimeout(warmTimer);warmTimer=null;warmTargets=[];warmController?.abort();revision++;controller?.abort();hideTip();drag=null;storeDraft();
- });
- window.addEventListener('weather-live-connection-changed',()=>{if(dialog.open)load(true)});
- window.addEventListener('weather-thunder-changed',()=>{if(dialog.open)draw()});
+ }
+ $('closeLiveArchive').onclick=()=>{location.hash='live'};
+ window.addEventListener('hashchange',()=>{if(isActive())enterWorkspace();else leaveWorkspace()});
+ enterWorkspace();
+ window.addEventListener('weather-live-connection-changed',()=>{if(isActive())load(true)});
+ window.addEventListener('weather-thunder-changed',()=>{if(isActive())draw()});
  window.addEventListener('storage',event=>{if(event.key===VIEWS)fillViews()});
 })();

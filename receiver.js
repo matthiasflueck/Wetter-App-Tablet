@@ -23,7 +23,7 @@
     ensure(data.settings&&typeof data.settings==='object'&&!Array.isArray(data.settings),'Einstellungen fehlen');
     ensure(Object.keys(data.settings).every(key=>SETTINGS.includes(key)),'Unbekannte Einstellungen');
     const settings=data.settings;
-    if(settings.diagramZooms!==undefined){ensure(settings.diagramZooms&&typeof settings.diagramZooms==='object'&&!Array.isArray(settings.diagramZooms),'Ungültiger Ansichtszoom');for(const [key,value] of Object.entries(settings.diagramZooms))ensure(['live','timeline','annual','comparison','analysis','measurements','data','settings'].includes(key)&&Number.isFinite(value)&&value>=60&&value<=140&&value%5===0,'Ungültiger Ansichtszoom')}
+    if(settings.diagramZooms!==undefined){ensure(settings.diagramZooms&&typeof settings.diagramZooms==='object'&&!Array.isArray(settings.diagramZooms),'Ungültiger Ansichtszoom');for(const [key,value] of Object.entries(settings.diagramZooms))ensure(['live','live-history','timeline','annual','comparison','analysis','measurements','data','settings'].includes(key)&&Number.isFinite(value)&&value>=60&&value<=140&&value%5===0,'Ungültiger Ansichtszoom')}
     if(settings.diagramZoom!==undefined)ensure(Number.isFinite(settings.diagramZoom)&&settings.diagramZoom>=60&&settings.diagramZoom<=140,'Ungültiger Zoom');
     if(settings.timelineValues!==undefined)ensure(typeof settings.timelineValues==='boolean','Ungültige Werteanzeige');
     if(settings.preferences!==undefined)ensure(settings.preferences&&['dark','light'].includes(settings.preferences.theme??'dark'),'Ungültige Darstellung');

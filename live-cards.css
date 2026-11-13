@@ -642,3 +642,20 @@ body:not(.focus-mode) #view-live #liveRefresh { margin-left: auto; }
 #preferenceConflicts .preference-choice-entry b { display: block; }
 #preferenceConflicts .preference-choice-entry small { display: block; line-height: 1.5; margin-top: 2px; }
 #preferenceConflicts .preference-conflict-note { font-size: 12px; line-height: 1.5; margin: 8px 0; }
+
+/* Live history is a normal workspace, with the shared navigation always available. */
+header .hamburger-toggle { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; font-size: 23px; line-height: 1; background: transparent; }
+header .hamburger-toggle:hover { border-color: var(--accent); color: var(--accent); }
+#view-live-history { height: calc(100dvh - var(--header-height,68px) - 60px); min-height: 240px; }
+#view-live-history #liveArchiveDialog { display: flex; flex-direction: column; position: relative; inset: auto; width: 100%; height: 100%; max-height: none; max-width: none; margin: 0; border: 0; border-radius: 0; background: transparent; }
+#liveArchiveDialog .archive-toolbar { min-width: 0; }
+#liveArchiveDialog .archive-toolbar select { min-width: 90px; }
+#liveArchiveDialog #archiveView { max-width: 250px; }
+#liveArchiveDialog #archiveStation { max-width: 370px; }
+#liveArchiveDialog #archiveRange { min-width: 110px; }
+#archiveStatus.is-notice { z-index: 150; }
+body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 34px 0 0 !important; }
+@media(max-width:850px){#view-live-history {height:calc(100dvh - var(--header-height,68px) - 40px)}body.nav-open #view-live-history {height:calc(100dvh - var(--header-height,68px) - 40px)}}
+
+#liveArchiveDialog .archive-toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-left: auto; }
+body.live-history-active main>p,body.live-history-active main>footer { display: none; }
