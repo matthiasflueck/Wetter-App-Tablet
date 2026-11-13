@@ -88,6 +88,23 @@
   if(spec.key==='pressure_hpa')return {change:points.at(-1).value-points[0].value};
   return {min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))};
  }
+ function zoomed(window,scale,anchor=.5,center=anchor){
+  const span=Math.max(300,Math.min(366*86400,(window.end-window.start)/Math.max(.000001,scale)));
+  const time=window.start+anchor*(window.end-window.start),start=Math.max(0,time-center*span);
+  return {start,end:start+span};
+ }
+ function calendarSegments(points,period){
+  const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit'});
+  const ordinal=p=>{const key=p.key||date.format(new Date(p.time*1000)),parts=key.split('-').map(Number);return period==='month'?parts[0]*12+parts[1]:Date.UTC(parts[0],parts[1]-1,parts[2])/86400000};
+  const groups=[];let group=[],previous=null;
+  for(const point of points){
+   if(!Number.isFinite(point.value)){if(group.length)groups.push(group);group=[];previous=null;continue}
+   const current=ordinal(point);
+   if(previous!==null&&current-previous>1){if(group.length)groups.push(group);group=[]}
+   group.push(point);previous=current;
+  }
+  if(group.length)groups.push(group);return groups;
+ }
  function shifted(window,fraction){
   const delta=(window.end-window.start)*fraction;
   return {start:window.start+delta,end:window.end+delta};
@@ -175,7 +192,7 @@
   const latest=entries.at(-1)?.data||{points:[]};
   return {covered,data:{...latest,points:[...points.values()].sort((a,b)=>a.time-b.time)}};
  }
- const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,shifted,compass,directionTicks,axisColumns,numericTicks,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
+ const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,zoomed,calendarSegments,shifted,compass,directionTicks,axisColumns,numericTicks,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherLiveLayout=api;
 })(typeof window==='undefined'?this:window);

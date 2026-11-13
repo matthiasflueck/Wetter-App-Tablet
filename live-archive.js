@@ -58,6 +58,7 @@
  function smoothingButton(){$('archiveSmoothing').textContent='∿ '+smoothingLabels[smoothing];$('archiveSmoothing').setAttribute('aria-pressed',String(smoothing>0))}
  smoothingButton();
  $('archiveSmoothing').onclick=()=>{smoothing=(smoothing+1)%6;try{localStorage.setItem('wetter.liveSmoothing',String(smoothing))}catch(error){}smoothingButton();draw()};
+ const touchPoints=new Map();let pinch=null,suppressTouch=false,wheelTimer;
  let lastRange='24',lastMode='rolling',frame=0;
  const expandedScales=new Set();
  let timeAxisCache=null;
@@ -377,7 +378,7 @@
   const {start,end,period}=shownWindow;
   const height=Math.max(140,canvas.clientHeight);
   const visible=visibleSeries();drawStatistics(visible);
-  const areaAxes=drag?.axes||Object.fromEntries(Layout.areas.map(area=>[area,Layout.axesFor(visible.filter(spec=>config.assignments[spec.key]===area),config.bounds[area])]));
+  const areaAxes=pinch?.axes||drag?.axes||Object.fromEntries(Layout.areas.map(area=>[area,Layout.axesFor(visible.filter(spec=>config.assignments[spec.key]===area),config.bounds[area])]));
   const columns=Layout.axisColumns(Object.values(areaAxes));
   const width=Math.max(320,canvas.clientWidth,columns.left+columns.right.reduce((sum,value)=>sum+value,0)+230);
   svg.style.width=width+'px';
@@ -430,14 +431,16 @@
     }else if(spec.type==='point'){
      for(const point of points)add('circle',{cx:x(point.time),cy:y(point.value),r:2.5,fill:stroke},undefined,marks);
     }else{
-     const groups=WeatherLiveCardData.segments(points,period?1:Math.max(900,(spec.data.bucket_seconds||600)*2),spec.key==='temperature_c'&&!period);
-     for(const group of groups){
+     const groups=period?Layout.calendarSegments(points,period):WeatherLiveCardData.segments(points,Math.max(900,(spec.data.bucket_seconds||600)*2),spec.key==='temperature_c');
+     for(const original of groups){
+      const fields=period&&spec.key==='temperature_c'&&original.every(p=>Number.isFinite(p.minimum)&&Number.isFinite(p.maximum))?['value','minimum','maximum']:['value'];
+      const group=WeatherLiveCardData.smoothSegment(original,[0,1,2,4,8,16][smoothing],fields);
       if(period&&spec.key==='temperature_c'&&group.length>1&&group.every(point=>Number.isFinite(point.minimum)&&Number.isFinite(point.maximum))){
        add('polygon',{points:group.map(point=>coord(point,point.maximum)).concat([...group].reverse().map(point=>coord(point,point.minimum))).join(' '),fill:stroke,opacity:.16},undefined,marks);
        for(const field of ['minimum','maximum'])add('path',{d:'M'+group.map(point=>coord(point,point[field])).join('L'),fill:'none',stroke:field==='maximum'?'#ff7777':'#77a9ef','stroke-width':1.2},undefined,marks);
       }
       if(group.length===1){add('circle',{cx:x(group[0].time),cy:y(group[0].value),r:2.5,fill:stroke},undefined,marks);continue}
-      const curve=WeatherLiveCardData.smoothSegment(group,[0,1,2,4,8,16][smoothing]);
+      const curve=group;
       add('path',{d:'M'+curve.map(point=>coord(point)).join('L'),fill:'none',stroke,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'},undefined,marks);
      }
     }
@@ -537,9 +540,9 @@
   tip.hidden=false;tip.style.left=Math.max(4,Math.min(position.x+12,plot.width-tip.offsetWidth-6))+'px';
   tip.style.top=Math.max(4,Math.min(canvas.scrollTop+12,plot.bottom-tip.offsetHeight))+'px';
  }
- function showWindow(window){
+ function showWindow(window,autoResolution=false){
   config.range='custom';config.start=localInput(window.start);config.end=localInput(window.end);
-  config.resolution=shownWindow?.period||'auto';range.value='custom';reflect();dirty();load();
+  config.resolution=autoResolution?'auto':shownWindow?.period||'auto';range.value='custom';reflect();dirty();load();
  }
  function shift(fraction){
   if(shownWindow)showWindow(Layout.shifted(shownWindow,fraction));
@@ -548,6 +551,15 @@
   if(event.button!==0||!plot)return;
   const point=pointer(event);if(!point||point.x<plot.left||point.x>plot.right)return;
   svg.setPointerCapture(event.pointerId);
+  if(event.pointerType==='touch'){
+   touchPoints.set(event.pointerId,point.x);
+   if(touchPoints.size===2){
+    const [a,b]=[...touchPoints.values()];
+    pinch={window:{...shownWindow},distance:Math.max(8,Math.abs(b-a)),anchor:((a+b)/2-plot.left)/(plot.right-plot.left),axes:plot.axes};
+    drag=null;suppressTouch=true;hideTip();event.preventDefault();return;
+   }
+   if(suppressTouch)return;
+  }
   if(pan){drag={id:event.pointerId,x:point.x,dx:0,width:plot.right-plot.left,axes:plot.axes,window:shownWindow};hideTip()}
   else showTip(event);
  };
@@ -556,6 +568,15 @@
   for(const layer of plot.layers)layer.setAttribute('transform','translate('+move+',0)');
  }
  svg.onpointermove=event=>{
+  if(touchPoints.has(event.pointerId)){
+   const point=pointer(event);if(!point)return;touchPoints.set(event.pointerId,point.x);
+   if(pinch&&touchPoints.size>=2&&plot){
+    event.preventDefault();const [a,b]=[...touchPoints.values()];
+    const target=Layout.zoomed(pinch.window,Math.max(8,Math.abs(b-a))/pinch.distance,pinch.anchor,((a+b)/2-plot.left)/(plot.right-plot.left));
+    shownWindow={...pinch.window,...target};hideTip();scheduleDraw();return;
+   }
+   if(suppressTouch)return;
+  }
   if(drag&&plot){
    const point=pointer(event);if(!point)return;
    drag.dx=point.x-drag.x;applyPan(drag.dx);
@@ -574,8 +595,27 @@
   }
   if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);
  }
- svg.onpointerup=event=>finishPan(event,false);
- svg.onpointercancel=event=>{finishPan(event,true);hideTip()};
+ function finishTouch(event,cancelled){
+  touchPoints.delete(event.pointerId);
+  if(pinch){
+   const original=pinch.window,target=shownWindow;pinch=null;drag=null;
+   if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);
+   if(cancelled){shownWindow=original;draw()}else showWindow(target,true);
+   if(!touchPoints.size)suppressTouch=false;
+   return;
+  }
+  if(suppressTouch){if(!touchPoints.size)suppressTouch=false;if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);return}
+  finishPan(event,cancelled);
+ }
+ svg.onpointerup=event=>finishTouch(event,false);
+ svg.onpointercancel=event=>{finishTouch(event,true);hideTip()};
+ svg.addEventListener('wheel',event=>{
+  if(!event.ctrlKey||!plot)return;
+  event.preventDefault();hideTip();const point=pointer(event);if(!point)return;
+  const anchor=Math.max(0,Math.min(1,(point.x-plot.left)/(plot.right-plot.left)));
+  shownWindow={...shownWindow,...Layout.zoomed(shownWindow,Math.exp(-event.deltaY*.005),anchor)};
+  scheduleDraw();clearTimeout(wheelTimer);wheelTimer=setTimeout(()=>showWindow(shownWindow,true),220);
+ },{passive:false});
  svg.onpointerleave=()=>{if(!drag)hideTip()};
  svg.ondblclick=()=>goNow();
  function goNow(){
@@ -654,11 +694,11 @@
   if(config.range!=='custom')lastRange=config.range;
   lastMode=config.mode;fillViews();$('archiveViewName').value=views()[activeView]?.name||'';
   reflect();setConfiguration(false);dialog.showModal();load(true);
-  refreshTimer=setInterval(()=>{if(!document.hidden&&config.range!=='custom'&&!drag)load(true)},300000);
+  refreshTimer=setInterval(()=>{if(!document.hidden&&config.range!=='custom'&&!drag&&!pinch)load(true)},300000);
  };
  $('closeLiveArchive').onclick=()=>dialog.close();
  dialog.addEventListener('close',()=>{
-  clearInterval(refreshTimer);clearTimeout(warmTimer);warmTimer=null;warmTargets=[];warmController?.abort();revision++;controller?.abort();hideTip();drag=null;storeDraft();
+  clearInterval(refreshTimer);clearTimeout(wheelTimer);touchPoints.clear();pinch=null;suppressTouch=false;clearTimeout(warmTimer);warmTimer=null;warmTargets=[];warmController?.abort();revision++;controller?.abort();hideTip();drag=null;storeDraft();
  });
  window.addEventListener('weather-live-connection-changed',()=>{if(dialog.open)load(true)});
  window.addEventListener('weather-thunder-changed',()=>{if(dialog.open)draw()});
