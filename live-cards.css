@@ -659,3 +659,14 @@ body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 34px 
 
 #liveArchiveDialog .archive-toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-left: auto; }
 body.live-history-active main>p,body.live-history-active main>footer { display: none; }
+
+/* Shared fullscreen controls, available on the Mac as well as the tablet. */
+#fullscreenExit { position: fixed; right: 10px; top: 8px; z-index: 300; padding: 9px 12px; min-height: 36px; font-size: 12px; border-radius: 20px; background: var(--panel); box-shadow: 0 2px 12px #0003; }
+body.focus-mode { --header-height: 0px !important; }
+body.focus-mode>header,body.focus-mode nav,body.focus-mode .nav-toggle,body.focus-mode main>footer { display: none !important; }
+body.focus-mode .app-shell { display: block; grid-template-columns: 1fr; }
+body.focus-mode main { padding: 12px; max-width: none; }
+body.focus-mode main>p { display: none; }
+body.focus-mode.live-history-active #fullscreenExit { display: none; }
+body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 0 !important; }
+#archiveFullscreen { white-space: nowrap; }

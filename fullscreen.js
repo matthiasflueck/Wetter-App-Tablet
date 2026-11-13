@@ -1,6 +1,6 @@
 /* Installed fullscreen display mode survives separately from the Fullscreen API. */
 (()=>{
- const buttons=[document.getElementById('tabletFullscreen'),document.getElementById('liveFullscreen')].filter(Boolean);if(!buttons.length)return;
+ const buttons=[document.getElementById('tabletFullscreen'),document.getElementById('liveFullscreen'),document.getElementById('archiveFullscreen')].filter(Boolean);if(!buttons.length)return;
  const exit=document.getElementById('fullscreenExit');let wanted=false;
  const installedFullscreen=()=>window.matchMedia?.('(display-mode: fullscreen)').matches===true;
  function apply(active){wanted=active;document.body.classList.toggle('focus-mode',active);for(const button of buttons){button.setAttribute('aria-pressed',String(active));button.textContent=active?'Vollbild beenden':'⛶ Vollbild'}exit.hidden=!active;try{localStorage.setItem('wetter.fullscreenFocus',String(active))}catch(e){}window.dispatchEvent(new Event('resize'))}
