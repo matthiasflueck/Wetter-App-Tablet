@@ -4,6 +4,25 @@
  const container=document.getElementById('liveSensors'),status=document.getElementById('liveStatus'),refresh=document.getElementById('liveRefresh');let state=null,busy=false,request=null,generation=0,nextPoll=null,clockTimer=null;
  const station=document.getElementById('liveStation');
  try{station.value=localStorage.getItem('wetter.liveStation')||'';if(station.selectedIndex<0)station.selectedIndex=0}catch(error){}
+ const lastStates=new Map(),lastValuesKey='wetter.lastLiveValues';
+ try{
+  const saved=JSON.parse(localStorage.getItem(lastValuesKey)||'{}');
+  for(const [code,value] of Object.entries(saved).slice(0,30)){
+   if(!/^(?:[a-z]{3})?$/.test(code))continue;
+   const snapshot=WeatherLiveCardData.lastLiveSnapshot(value);
+   if(snapshot&&snapshot.station===code)lastStates.set(code,snapshot);
+  }
+ }catch(error){}
+ function remember(value){
+  const snapshot=WeatherLiveCardData.lastLiveSnapshot(value);
+  if(!snapshot)return;
+  lastStates.set(snapshot.station,snapshot);
+  try{localStorage.setItem(lastValuesKey,JSON.stringify(Object.fromEntries(lastStates)))}catch(error){}
+ }
+ function restoreLast(){
+  state=lastStates.get(station.value)||null;
+  if(state)render();
+ }
  const active=()=>location.hash==='#live'&&!document.hidden;
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
  const fields={solar:[['solar_wm2','Solarstrahlung','W/m²'],['uv_index','UV-Index','']],lightning:[['lightning_count','Blitzzähler',''],['lightning_distance_km','Entfernung letzter Blitz','km']],thermohygro:[['temperature_c','Temperatur','°C'],['humidity_percent','Luftfeuchtigkeit','%']],rain:[['rain_total_mm','Regenzähler','mm']],wind:[['wind_kmh','Windgeschwindigkeit','km/h'],['gust_kmh','Böe','km/h'],['wind_direction_degrees','Windrichtung','°']],pressure:[['pressure_hpa','Luftdruck','hPa']]};
@@ -33,7 +52,7 @@
  const info=node('details',undefined,'live-info');info.open=opened.has(sensor.key);const summary=node('summary','i');summary.setAttribute('aria-label','Informationen zu '+title);const panel=node('div',undefined,'live-info-panel');panel.append(node('h4',sensor.name));const details=node('dl',undefined,'live-meta');
  for(const [label,value,marker] of [['Messzeitpunkt',date(sensor.observation?.measured_at)],['Datenalter','','age'],['Zuletzt am Server gesehen',date(sensor.observation?.last_seen_at),'lastSeen'],['Batterie',sensor.observation?.battery_low===true?'Batterie schwach':sensor.observation?.battery_low===false?'Keine Batteriewarnung':'Unbekannt'],['Quelle',sensor.provider==='meteoswiss'?'MeteoSchweiz · SwissMetNet':sensor.provider==='ecowitt'?'Ecowitt':'TFA WeatherHub · Mobile Alerts']]){const field=node('dd',value);if(remote&&['Batterie','Zuletzt am Server gesehen'].includes(label))continue;if(marker)field.dataset[marker]='';details.append(node('dt',label),field)}panel.append(details,node('p','Messwertstatus:','live-status-heading'));
  if(kind==='lightning')panel.append(node('p','Letztes Blitzereignis: '+date(sensor.observation?.values.lightning_event_at)));
- if(kind==='thermohygro')panel.append(node('p','Gefühlt: Apparent Temperature nach Steadman für Schattenbedingungen, berechnet aus Temperatur, Feuchte und Wind Mittel (Modellannahme: 10 m Windhöhe). Bei fehlenden, veralteten oder zeitlich unpassenden Messungen wird kein Wert angezeigt.'));
+ if(kind==='thermohygro')panel.append(node('p','Gefühlt: Apparent Temperature nach Steadman für Schattenbedingungen, berechnet aus Temperatur, Feuchte und Wind Mittel (Modellannahme: 10 m Windhöhe). Bei einem Ausfall werden die zuletzt empfangenen Temperatur-, Feuchte- und Windwerte dieser Station weiterverwendet.'));
  if(kind==='rain'&&sensor.provider==='meteoswiss')panel.append(node('p','MeteoSchweiz · Intervallmengen. Offizielle Regen-Tageswerte gelten von 06:00 bis 06:00 UTC. Monatsverläufe basieren auf diesen Tageswerten.'));
  if(kind==='rain'&&sensor.provider!=='meteoswiss')panel.append(node('p','Gleitende Regenmenge im gewählten Anzeigezeitraum, zusätzlich 1 Stunde und 10 Minuten. Berechnet aus den Zählerzunahmen im NAS-Archiv.'));
  if(sensor.error)panel.append(node('p',sensor.error+(sensor.observation?' Der letzte bekannte Messwert bleibt angezeigt.':''),'live-error'));
@@ -80,7 +99,7 @@
   if(!response.ok)throw Error(result.message||'Die App konnte die Messwerte nicht laden.');
   return result;
  }
- async function load(){if(!active()||busy)return;clearTimeout(nextPoll);busy=true;const current=++generation;request=new AbortController();updateClock();status.textContent=state?'':'Messwerte werden abgerufen …';try{const result=await readCurrent(request.signal);if(current!==generation)return;const changed=!state||WeatherLiveCardData.liveVersion(state)!==WeatherLiveCardData.liveVersion(result);state=result;status.textContent=result.error||'';if(changed)render();else{updateClock();window.dispatchEvent(new CustomEvent('weather-live-status-updated',{detail:state}))}}catch(error){if(error.name!=='AbortError'&&current===generation)status.textContent='Abruf fehlgeschlagen. '+error.message}finally{if(current===generation){busy=false;updateClock();if(active())nextPoll=setTimeout(load,station.value?300000:120000)}}}
+ async function load(){if(!active()||busy)return;clearTimeout(nextPoll);busy=true;const current=++generation;request=new AbortController();updateClock();status.textContent=state?'':'Messwerte werden abgerufen …';try{const received=await readCurrent(request.signal);if(current!==generation)return;const result=WeatherLiveCardData.retainLastLive(received,lastStates.get(station.value));remember(result);const changed=!state||WeatherLiveCardData.liveVersion(state)!==WeatherLiveCardData.liveVersion(result);state=result;status.textContent=result.error||'';if(changed)render();else{updateClock();window.dispatchEvent(new CustomEvent('weather-live-status-updated',{detail:state}))}}catch(error){if(error.name!=='AbortError'&&current===generation)status.textContent='Abruf fehlgeschlagen. '+error.message}finally{if(current===generation){busy=false;updateClock();if(active())nextPoll=setTimeout(load,station.value?300000:120000)}}}
  function tickClock(){updateClock();clockTimer=setTimeout(tickClock,60000-Date.now()%60000+10)}
  function start(){if(active()){if(!clockTimer)tickClock();load()}else{clearTimeout(nextPoll);clearTimeout(clockTimer);clockTimer=null;generation++;request?.abort();busy=false}}
  window.WeatherCurrentLiveState=()=>state;
@@ -88,7 +107,7 @@
   try{localStorage.setItem('wetter.liveStation',station.value)}catch(error){}
   clearTimeout(nextPoll);generation++;request?.abort();busy=false;state=null;container.replaceChildren();
   window.dispatchEvent(new Event('weather-live-source-changed'));
-  start();
+  restoreLast();start();
  };
- refresh.onclick=load;window.addEventListener('weather-live-connection-changed',()=>{state=null;container.replaceChildren();start()});window.addEventListener('hashchange',start);document.addEventListener('visibilitychange',start);start();
+ refresh.onclick=load;window.addEventListener('weather-live-connection-changed',()=>{state=null;container.replaceChildren();restoreLast();start()});window.addEventListener('hashchange',start);document.addEventListener('visibilitychange',start);restoreLast();start();
 })();

@@ -8,13 +8,55 @@
   const value=temperature+.33*vapour-.70*(windKmh/3.6)-4;
   return Number.isFinite(value)?value:null;
  }
- function apparentFromSensors(sensors,now){
+ function apparentFromSensors(sensors){
   const temperature=sensors.find(s=>s.kind==='thermohygro'),wind=sensors.find(s=>s.kind==='wind');
-  if(!temperature||!wind||temperature.error||wind.error||!Number.isFinite(now))return null;
+  if(!temperature||!wind)return null;
   const t=temperature.observation,w=wind.observation;if(!t||!w)return null;
-  const times=[t.value_times?.temperature_c??t.measured_at,t.value_times?.humidity_percent??t.measured_at,w.value_times?.wind_kmh??w.measured_at];
-  if(times.some(time=>!Number.isFinite(time)||now-time>900||time-now>120)||Math.max(...times)-Math.min(...times)>600)return null;
   return apparentTemperature(t.values?.temperature_c,t.values?.humidity_percent,w.values?.wind_kmh);
+ }
+ const liveFields={thermohygro:['temperature_c','humidity_percent'],wind:['wind_kmh','gust_kmh','wind_direction_degrees'],rain:['rain_total_mm'],solar:['solar_wm2','uv_index'],pressure:['pressure_hpa','pressure_qff_hpa'],lightning:['lightning_count','lightning_distance_km','lightning_event_at']};
+ function validLiveValue(key,value){
+  if(!Number.isFinite(value))return false;
+  if(key==='temperature_c')return value> -100&&value<100;
+  if(key==='humidity_percent')return value>=0&&value<=100;
+  return value>=0;
+ }
+ function lastLiveSnapshot(state){
+  const station=state?.station||'';
+  if(typeof station!=='string'||!/^(?:[a-z]{3})?$/.test(station)||!Array.isArray(state?.sensors))return null;
+  const sensors=state.sensors.filter(sensor=>sensor&&Object.hasOwn(liveFields,sensor.kind)&&typeof sensor.key==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(sensor.key)&&['meteoswiss','tfa_weatherhub','ecowitt'].includes(sensor.provider)).slice(0,12).map(sensor=>{
+   const observation=sensor.observation,values={},times={};
+   for(const key of liveFields[sensor.kind])if(validLiveValue(key,observation?.values?.[key])){
+    values[key]=observation.values[key];
+    const time=observation.value_times?.[key]??observation.measured_at;
+    if(Number.isFinite(time))times[key]=time;
+   }
+   return {key:sensor.key,kind:sensor.kind,provider:sensor.provider,name:typeof sensor.name==='string'?sensor.name.slice(0,160):sensor.kind,
+    observation:Object.keys(values).length?{values,value_times:times,measured_at:Number.isFinite(observation.measured_at)?observation.measured_at:0,
+     last_seen_at:Number.isFinite(observation.last_seen_at)?observation.last_seen_at:null,battery_low:typeof observation.battery_low==='boolean'?observation.battery_low:null}:null};
+  });
+  return {station,recording:state.recording===true,observed_end:Number.isFinite(state.observed_end)?state.observed_end:undefined,sensors};
+ }
+ function retainLastLive(state,previous){
+  if(!previous||(state.station||'')!==(previous.station||''))return state;
+  const old=new Map((previous.sensors||[]).map(sensor=>[sensor.key,sensor]));
+  const sensors=(state.sensors||[]).map(sensor=>{
+   const last=old.get(sensor.key);old.delete(sensor.key);
+   if(last?.kind!==sensor.kind||last.provider!==sensor.provider||!last.observation)return sensor;
+   const observation=sensor.observation;
+   if(!observation)return {...sensor,observation:last.observation};
+   const values={...observation.values},times={...observation.value_times};
+   for(const key of liveFields[sensor.kind]||[]){
+    const oldTime=last.observation.value_times?.[key]??last.observation.measured_at;
+    const newTime=observation.value_times?.[key]??observation.measured_at;
+    if(validLiveValue(key,last.observation.values?.[key])&&(!validLiveValue(key,values[key])||Number.isFinite(oldTime)&&Number.isFinite(newTime)&&oldTime>newTime)){
+     values[key]=last.observation.values[key];times[key]=oldTime;
+    }
+   }
+   return {...sensor,observation:{...observation,values,value_times:times}};
+  });
+  for(const sensor of old.values())if(sensor.observation)sensors.push({...sensor,error:'Keine neuen Werte empfangen. Der letzte Messwert wird angezeigt.'});
+  return {...state,sensors};
  }
  function binBars(data,count=48){
   const span=(data.end-data.start)/count,bins=new Map();for(const p of data.points||[]){if(!Number.isFinite(p.value))continue;const t=(p.first+p.last)/2,index=Math.min(count-1,Math.max(0,Math.floor((t-data.start)/span)));let b=bins.get(index);if(!b){b={first:data.start+index*span,last:data.start+(index+1)*span,total:0,count:0,minimum:Infinity,maximum:-Infinity};bins.set(index,b)}const weight=p.count||1;b.total+=p.value*weight;b.count+=weight;b.minimum=Math.min(b.minimum,p.minimum??p.value);b.maximum=Math.max(b.maximum,p.maximum??p.value)}return [...bins.values()].map(b=>({...b,last:Math.min(b.last,data.observed_end??data.end),value:b.total/b.count}));
@@ -105,7 +147,7 @@
   const kelvin=temperature+273.15+.00325*elevation;
   return pressure*Math.exp(9.80665*elevation/(287.05*kelvin));
  }
- const api={seaLevelPressure,liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={seaLevelPressure,liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,lastLiveSnapshot,retainLastLive,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */

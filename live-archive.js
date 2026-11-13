@@ -38,6 +38,14 @@
  if(!dialog||!Layout)return;
  const canvas=svg.parentElement,station=$('archiveStation'),range=$('archiveRange'),mode=$('archiveMode');
  const status=$('archiveStatus'),metrics=$('archiveMetrics'),view=$('archiveView');
+ let noticeTimer;
+ new MutationObserver(()=>{
+  clearTimeout(noticeTimer);
+  const text=status.textContent.trim();
+  const notice=!!text&&!/^(Schweizer Ortszeit|Monatswerte|Tageswerte)(?:$| ·)/.test(text);
+  status.classList.toggle('is-notice',notice);
+  if(notice)noticeTimer=setTimeout(()=>status.classList.remove('is-notice'),7000);
+ }).observe(status,{childList:true,characterData:true,subtree:true});
  const DAY=86400,DRAFT='wetter.liveArchiveDraft',VIEWS='wetter.liveViews';
  const kinds={temperature_c:'thermohygro',humidity_percent:'thermohygro',rain_total_mm:'rain',wind_kmh:'wind',gust_kmh:'wind',wind_direction_degrees:'wind',pressure_hpa:'pressure',solar_wm2:'solar',uv_index:'solar'};
  const rangeOptions=[['1','1 Stunde'],['2','2 Stunden'],['6','6 Stunden'],['24','24 Stunden'],['168','7 Tage'],['720','Monat'],['8760','Jahr'],['custom','Freier Zeitraum']];
@@ -77,12 +85,11 @@
   const entries=Object.entries(views()).sort((a,b)=>a[1].name.localeCompare(b[1].name,'de-CH'));
   view.replaceChildren(new Option('Eigene Ansicht',''),...entries.map(([id,item])=>new Option(item.name,id)));
   if(!entries.some(([id])=>id===activeView))activeView='';
-  view.value=activeView&&JSON.stringify(entries.find(([id])=>id===activeView)?.[1].config)!==JSON.stringify(config)?'':activeView;
+  view.value=activeView;
   $('archiveDeleteView').disabled=!activeView;
  }
  function dirty(){
-  const saved=views()[activeView];
-  view.value=saved&&JSON.stringify(saved.config)===JSON.stringify(config)?activeView:'';
+  view.value=views()[activeView]?activeView:'';
   storeDraft();drawLegend();
  }
  function fillStation(){
@@ -160,7 +167,7 @@
     };
     picker.type='color';picker.value=color(spec);picker.setAttribute('aria-label','Farbe '+spec.label);
     picker.oninput=()=>{config.colors[spec.key]=picker.value;dirty();draw()};
-    row.append(title,select,picker);rows.append(row);
+    row.append(picker,select,title);rows.append(row);
    }
    const axisControls=document.createElement('div');axisControls.className='archive-card-scales';
    card.append(heading,rows,axisControls);
@@ -463,8 +470,12 @@
   add('rect',{x:layout.left-1,y:base,width:layout.right-layout.left+2,height:54},undefined,clip);
   const clipped=add('g',{'clip-path':'url(#live-detail-time-labels)'}),labels=add('g',{},undefined,clipped);
   layers.push(labels);
+  const cells=Layout.timeCells(ticks,start-padding,end+padding);
+  for(const [row,items] of [cells.primary,cells.secondary].entries())for(const cell of items){
+   add('rect',{x:x(cell.start),y:base+(row?31:0),width:Math.max(0,x(cell.end)-x(cell.start)),height:row?23:31,class:'archive-time-cell'+(cell.alternate?' is-alternate':''),'pointer-events':'none'},undefined,labels);
+  }
   for(const tick of ticks.ticks){
-   const xx=x(tick.time),yy=base+20;
+   const xx=x(tick.time),yy=base+(ticks.rotate?12:20);
    add('line',{x1:xx,x2:xx,y1:base,y2:base+5,class:'live-detail-grid','data-time':tick.time},undefined,labels);
    add('text',{x:xx,y:yy,'text-anchor':ticks.rotate?'end':'middle',transform:ticks.rotate?`rotate(-40 ${xx} ${yy})`:'','data-time':tick.time,class:'archive-time-label'},tick.label,labels);
   }
@@ -596,7 +607,6 @@
   config=clone(saved.config);$('archiveViewName').value=saved.name;
   lastRange=config.range==='custom'?'24':config.range;lastMode=config.mode;
   reflect();dirty();$('archiveDeleteView').disabled=false;
-  if(config.range==='custom')setConfiguration(true);
   load();
  };
  $('archiveConfigure').onclick=()=>setConfiguration(!configured);
@@ -604,7 +614,7 @@
   pan=!pan;$('archivePan').setAttribute('aria-pressed',String(pan));canvas.classList.toggle('is-panning',pan);hideTip();
   status.textContent=pan?'Zeitachse mit Maus oder Finger ziehen. Doppelklick oder «Jetzt» kehrt zum aktuellen Zeitraum zurück.':'Werte mit Maus oder Finger anzeigen.';
  };
- $('archiveBack').onclick=()=>shift(-.25);$('archiveForward').onclick=()=>shift(.25);$('archiveNow').onclick=goNow;
+ $('archiveBack').onclick=()=>shift(-1);$('archiveForward').onclick=()=>shift(1);$('archiveNow').onclick=goNow;
  station.onchange=()=>{config.station=station.value;dirty();load()};
  range.onchange=()=>{
   config.range=range.value;
@@ -623,7 +633,7 @@
   }
   if(config.range!=='custom')lastRange=config.range;
   lastMode=config.mode;fillViews();$('archiveViewName').value=views()[activeView]?.name||'';
-  reflect();setConfiguration(config.range==='custom');dialog.showModal();load(true);
+  reflect();setConfiguration(false);dialog.showModal();load(true);
   refreshTimer=setInterval(()=>{if(!document.hidden&&config.range!=='custom'&&!drag)load(true)},300000);
  };
  $('closeLiveArchive').onclick=()=>dialog.close();

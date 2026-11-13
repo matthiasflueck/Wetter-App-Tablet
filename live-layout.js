@@ -108,7 +108,7 @@
     if((local.hour*3600+local.minute*60)%step===0)ticks.push({time,label:label(time,{hour:'2-digit',minute:'2-digit'}),major:local.hour===0&&local.minute===0});
    }
    const groups=cal.days.map(d=>({time:d.time,start:d.start,end:d.end,label:label(d.time,{weekday:'short',day:'2-digit',month:'2-digit'})}));
-   return {ticks,midnights:cal.midnights,groups,rotate:false,step};
+   return {ticks,midnights:cal.midnights,groups,rotate:false,step,unit:"hour",groupUnit:"day"};
   }
   if(referenceSpan<=62*day){
    const goal=span/day/Math.max(3,Math.floor(width/60)),stride=[1,2,3,5,7,14].find(value=>value>=goal)||14;
@@ -116,7 +116,7 @@
     const wall=new Date(localDate.format(new Date(time*1000))+'T00:00:00Z');
     if(Math.round(wall.getTime()/86400000)%stride===0)ticks.push({time,label:label(time,{...(referenceSpan<=10*day?{weekday:'short'}:{}),day:'2-digit',month:'2-digit'}),major:true});
    }
-   return {ticks,midnights:[],groups:cal.groups.map(g=>({time:g.time,start:g.start,end:g.end,label:label(g.time,{month:'long',year:'numeric'})})),rotate:false};
+   return {ticks,midnights:[],groups:cal.groups.map(g=>({time:g.time,start:g.start,end:g.end,label:label(g.time,{month:'long',year:'numeric'})})),rotate:false,unit:"day",groupUnit:"month"};
   }
   const stride=Math.max(1,Math.ceil(cal.months.length*48/width));
   cal.months.forEach((month,index)=>{
@@ -124,7 +124,19 @@
    if(!local.startsWith('01')||!local.endsWith('00:00')||index%stride)return;
    ticks.push({time:month.start,label:month.label,major:label(month.start,{month:'2-digit'})==='01'});
   });
-  return {ticks,midnights:[],groups:cal.groups.map(group=>({time:group.time,start:group.start,end:group.end,label:group.label})),rotate:true};
+  return {ticks,midnights:[],groups:cal.groups.map(group=>({time:group.time,start:group.start,end:group.end,label:group.label})),rotate:true,unit:"month",groupUnit:"year"};
+ }
+ function timeCells(axis,start,end){
+  const local=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  const alternate=(time,unit)=>{
+   const p=Object.fromEntries(local.formatToParts(new Date(time*1000)).filter(p=>p.type!=='literal').map(p=>[p.type,+p.value]));
+   const day=Math.round(Date.UTC(p.year,p.month-1,p.day)/86400000);
+   return (unit==='year'?p.year:unit==='month'?p.year*12+p.month:unit==='day'?day:Math.floor((day*86400+p.hour*3600+p.minute*60)/(axis.step||3600)))%2!==0;
+  };
+  const boundaries=[start,...axis.ticks.map(t=>t.time).filter(t=>t>start&&t<end),end].sort((a,b)=>a-b);
+  const primary=boundaries.slice(1).map((last,i)=>({start:boundaries[i],end:last,alternate:alternate((boundaries[i]+last)/2,axis.unit)}));
+  const secondary=axis.groups.map(g=>({start:Math.max(start,g.start),end:Math.min(end,g.end),alternate:alternate(g.time,axis.groupUnit)})).filter(g=>g.end>g.start);
+  return {primary,secondary};
  }
  function bufferWindow(window,code,now=Date.now()/1000){
   const span=window.end-window.start,maxSpan=window.period?366*86400:code?10*86400:366*86400;
@@ -149,7 +161,7 @@
   const latest=entries.at(-1)?.data||{points:[]};
   return {covered,data:{...latest,points:[...points.values()].sort((a,b)=>a.time-b.time)}};
  }
- const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,shifted,compass,directionTicks,axisColumns,timeTicks,bufferWindow,cachedSeries};
+ const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,shifted,compass,directionTicks,axisColumns,timeTicks,timeCells,bufferWindow,cachedSeries};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherLiveLayout=api;
 })(typeof window==='undefined'?this:window);

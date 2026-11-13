@@ -586,3 +586,27 @@ body.focus-mode #view-live .live-sensor[data-sensor-kind=pressure] .live-pressur
 #liveArchiveDialog.is-configuring .live-detail-canvas { flex-basis: 240px; min-height: 240px; }
 #liveArchiveDialog .archive-axis-setting > summary { cursor: pointer; font-size: 11px; color: var(--muted); }
 #liveArchiveDialog .archive-axis-setting[open] > summary { margin-bottom: 7px; }
+
+#liveArchiveDialog .archive-assignment { display: flex; justify-content: flex-start; gap: 7px; }
+#liveArchiveDialog .archive-assignment input[type=color] { flex: 0 0 28px; }
+#liveArchiveDialog .archive-assignment select { flex: 0 0 56px; width: 56px; }
+#liveArchiveDialog .archive-assignment > span { flex: 0 1 auto; }
+#liveArchiveDialog .archive-toolbar { gap: 8px; }
+#liveArchiveDialog .archive-toolbar :is(button,select) { padding: 7px 12px; min-height: 36px; font-size: 13px; }
+#liveArchiveDialog .archive-toolbar #archiveView { flex: 1.2 1 165px; max-width: 250px; }
+#liveArchiveDialog .archive-toolbar #archiveStation { flex: 1.8 1 220px; max-width: 370px; }
+#liveArchiveDialog .archive-toolbar #archiveRange { flex: 1 1 135px; }
+#liveArchiveDialog .archive-toolbar #archiveModeLabel { flex: 1 1 145px; }
+#liveArchiveDialog .archive-toolbar #archiveMode { width: 100%; }
+#liveArchiveDialog .archive-toolbar #closeLiveArchive { margin-left: 0; }
+#liveArchiveDialog #archiveStatus { display: none; }
+#liveArchiveDialog .live-time-grid.is-midnight { stroke-width: 2.4; opacity: .9; }
+#liveArchiveDialog .archive-time-cell { fill: var(--muted); fill-opacity: .055; }
+#liveArchiveDialog .archive-time-cell.is-alternate { fill-opacity: .13; }
+@media(max-width:760px) {
+ #liveArchiveDialog .archive-toolbar :is(button,select) { padding: 6px 9px; }
+ #liveArchiveDialog .archive-toolbar #archiveView,
+ #liveArchiveDialog .archive-toolbar #archiveStation { max-width: none; }
+}
+
+#liveArchiveDialog #archiveStatus.is-notice { display: block; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 20; max-width: min(680px, 85vw); padding: 10px 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--text); box-shadow: 0 4px 20px #0004; font-size: 12px; }
