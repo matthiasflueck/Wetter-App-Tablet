@@ -205,17 +205,56 @@
   return {changed:Object.keys(patch).length,published:Object.keys(result.changes).length};
  }
 
+ function conflictPreview(key,options){
+  const metricNames=Object.fromEntries((layout?.definitions||[]).map(d=>[d.key,d.label]));
+  const plain=value=>value===null||value===undefined?'Standardwert':typeof value==='boolean'?value?'Ein':'Aus':Array.isArray(value)?value.map(plain).join(' – '):record(value)?Object.entries(value).map(([k,v])=>(metricNames[k]||names[k]||({min:'Min',max:'Max',temperature:'Temperatur',rain:'Niederschlag',wind:'Wind',solar:'Solarstrahlung',humidity:'Luftfeuchte'})[k]||k)+': '+plain(v)).join(' · '):({dark:'Dunkel',light:'Hell',top:'Oberhalb',right:'Rechts'})[value]||String(value)||'Leer';
+  if(key!=='liveViews')return {common:[],choices:options.map(option=>({label:option.label,items:[{name:plain(option.value),details:[]}]}))};
+  const ids=[...new Set(options.flatMap(option=>Object.keys(option.value||{})))];
+  const changed=ids.filter(id=>options.some(option=>!equal(option.value?.[id],options[0].value?.[id])));
+  const common=ids.filter(id=>!changed.includes(id)).map(id=>options[0].value[id].name);
+  const fields=['station','range','mode','resolution','start','end','assignments','colors','bounds','heights','storm'];
+  const labels={station:'Station',range:'Zeitraum',mode:'Zeitraumart',resolution:'Auflösung',start:'Gespeicherter Beginn',end:'Gespeichertes Ende',assignments:'Messgrössen',colors:'Linienfarben',bounds:'Skalen',heights:'Diagrammhöhen',storm:'Gewitterband'};
+  const terms={range:{'1':'1 Stunde','2':'2 Stunden','6':'6 Stunden','24':'24 Stunden','168':'7 Tage','720':'Monat','8760':'Jahr',custom:'Freier Zeitraum'},mode:{calendar:'Kalender',rolling:'Gleitend'},resolution:{auto:'Automatisch',raw:'Einzelwerte',day:'Tageswerte',month:'Monatswerte'}};
+  const describe=(field,value)=>{
+   if(field==='station')return value?value.toUpperCase():'Eigene Wetterstation';
+   if(terms[field])return terms[field][value]||plain(value);
+   if(field==='assignments')return ['A','B','C'].map(area=>{const metrics=Object.entries(value||{}).filter(([,v])=>v===area).map(([k])=>metricNames[k]||k);return metrics.length?area+': '+metrics.join(', '):''}).filter(Boolean).join(' · ')||'Keine';
+   if(field==='heights')return 'A/B '+Math.round(value.upper*100)+' % · C '+Math.round(value.lower*100)+' % · B-Anteil '+Math.round(value.b*100)+' %';
+   if(['colors','bounds'].includes(field)&&!Object.keys(value||{}).length)return 'Automatisch / Standard';
+   if(['start','end'].includes(field))return value?value.slice(8,10)+'.'+value.slice(5,7)+'.'+value.slice(0,4)+' '+value.slice(11):'Nicht festgelegt';
+   return plain(value);
+  };
+  const choices=options.map(option=>({label:option.label,items:changed.map(id=>{
+   const view=option.value?.[id],other=options.find(o=>o.value?.[id])?.value[id];
+   if(!view)return {name:other?.name||'Ansicht',details:['In dieser Version nicht vorhanden.']};
+   const different=fields.filter(field=>options.some(o=>!equal(o.value?.[id]?.config?.[field],view.config[field])));
+   return {name:view.name,details:different.map(field=>labels[field]+': '+describe(field,view.config[field]))};
+  })}));
+  return {common,choices};
+ }
  function resolveConflicts(conflicts){
   const dialog=document.getElementById('preferenceConflicts'),form=dialog.querySelector('form'),fields=dialog.querySelector('[data-conflicts]');
   fields.replaceChildren();
-  const valueLabel=value=>value===null?'Standardwert':typeof value==='boolean'?value?'Ein':'Aus':typeof value==='object'?JSON.stringify(value):String(value)||'Leer';
   for(const [index,{key,options}] of conflicts.entries()){
    const group=document.createElement('fieldset'),title=document.createElement('legend');
    title.textContent=schema.get(key).label;group.append(title);
+   const preview=conflictPreview(key,options);
+   if(key==='liveViews'){
+    const note=document.createElement('p');note.className='preference-conflict-note';note.textContent='Nur Unterschiede werden angezeigt. Die gewählte Version der Ansichtensammlung wird auf beide Geräte übernommen.';group.append(note);
+    if(preview.common.length){const common=document.createElement('p');common.className='preference-conflict-note';common.textContent='Unverändert auf beiden Seiten: '+preview.common.join(', ');group.append(common)}
+   }
    for(const [i,option] of options.entries()){
     const label=document.createElement('label'),input=document.createElement('input');
     Object.assign(input,{type:'radio',name:'conflict-'+index,value:String(i),required:true});
-    label.append(input,document.createTextNode(option.label+' · '+valueLabel(option.value)));
+    const content=document.createElement('div'),heading=document.createElement('strong');
+    heading.textContent=option.label;content.append(heading);
+    for(const item of preview.choices[i].items){
+     const entry=document.createElement('div');entry.className='preference-choice-entry';
+     const name=document.createElement('b');name.textContent=item.name;entry.append(name);
+     for(const detail of item.details){const line=document.createElement('small');line.textContent=detail;entry.append(line)}
+     content.append(entry);
+    }
+    label.append(input,content);
     group.append(label);
    }
    fields.append(group);
@@ -298,7 +337,7 @@
    return result;
   };
  }
- const api={driveTransport,macTransport,synchronize,validateEvent,plan,readLocal,applyLocal,attach};
+ const api={driveTransport,macTransport,synchronize,validateEvent,plan,readLocal,applyLocal,attach,conflictPreview};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherPreferenceSync=api;
 })(typeof window==='undefined'?this:window);
