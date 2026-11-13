@@ -20,6 +20,9 @@
  add('preferences.legendPosition','Position der Legende',oneOf('top','right'));
  add('preferences.diagramBackgroundEnabled','Diagrammhintergrund anzeigen',bool);
  add('preferences.diagramBackgroundColor','Farbe des Diagrammhintergrunds',v=>v===''||color(v));
+ add('preferences.liveHistoryBackgroundEnabled','Live Verlauf · Hintergrund anzeigen',bool);
+ add('preferences.liveHistoryBackgroundColor','Live Verlauf · Hintergrundfarbe',v=>v===''||color(v));
+ add('preferences.liveHistoryStripes','Live Verlauf · Zeitintervalle schattieren',bool);
  add('thunder.count','Gewitterschwelle · Anzahl',v=>Number.isSafeInteger(v)&&v>=0);
  add('thunder.distance','Gewitterschwelle · Entfernung',finite(0,100000));
  add('timelineValues','Werte im Zeitverlauf anzeigen',bool);

@@ -28,6 +28,8 @@
     if(settings.timelineValues!==undefined)ensure(typeof settings.timelineValues==='boolean','Ungültige Werteanzeige');
     if(settings.preferences!==undefined)ensure(settings.preferences&&['dark','light'].includes(settings.preferences.theme??'dark'),'Ungültige Darstellung');
     if(settings.preferences?.headerSubtitle!==undefined)ensure(typeof settings.preferences.headerSubtitle==='string'&&settings.preferences.headerSubtitle.length<=120,'Ungültiger App-Untertitel');
+    for(const key of ['liveHistoryBackgroundEnabled','liveHistoryStripes'])if(settings.preferences?.[key]!==undefined)ensure(typeof settings.preferences[key]==='boolean','Ungültiger Live-Verlauf-Hintergrund');
+    if(settings.preferences?.liveHistoryBackgroundColor!==undefined)ensure(settings.preferences.liveHistoryBackgroundColor===''||/^#[0-9a-f]{6}$/i.test(settings.preferences.liveHistoryBackgroundColor),'Ungültige Live-Verlauf-Farbe');
     if(settings.preferences?.diagramBackgroundEnabled!==undefined)ensure(typeof settings.preferences.diagramBackgroundEnabled==='boolean','Ungültiger Diagrammhintergrund');
     if(settings.preferences?.diagramBackgroundColor!==undefined)ensure(settings.preferences.diagramBackgroundColor===''||/^#[0-9a-f]{6}$/i.test(settings.preferences.diagramBackgroundColor),'Ungültige Hintergrundfarbe');
     if(settings.yAxes!==undefined)for(const [key,range] of Object.entries(settings.yAxes))ensure(['temperature','rain','solar','wind','humidity','uv'].includes(key)&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.min<range.max,'Ungültige Achsengrenzen');

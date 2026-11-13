@@ -86,6 +86,11 @@
   const nice=(integer?[1,2,5,10]:[1,2,2.5,5,10]).find(value=>value>=fraction-1e-9)*power;
   return integer?Math.max(1,Math.ceil(nice)):nice;
  }
+ function mixColor(foreground,background,weight){
+  const rgb=color=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
+  const a=rgb(foreground),b=rgb(background);
+  return '#'+a.map((value,i)=>Math.round(value*weight+b[i]*(1-weight)).toString(16).padStart(2,'0')).join('');
+ }
  function numericTicks(min,max,count,integer=false){
   const step=tickStep(min,max,count,integer),values=[];
   for(let v=Math.ceil(min/step)*step;v<=max+step*1e-8;v+=step)values.push(Number(v.toPrecision(12)));
@@ -210,7 +215,7 @@
   const latest=entries.at(-1)?.data||{points:[]};
   return {covered,data:{...latest,points:[...points.values()].sort((a,b)=>a.time-b.time)}};
  }
- const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,zoomed,calendarSegments,shifted,compass,directionTicks,axisColumns,numericTicks,smoothingRadius,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
+ const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,zoomed,calendarSegments,shifted,compass,directionTicks,axisColumns,numericTicks,mixColor,smoothingRadius,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherLiveLayout=api;
 })(typeof window==='undefined'?this:window);

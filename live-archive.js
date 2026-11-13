@@ -397,8 +397,8 @@
    if(text!==undefined)node.textContent=text;
    parent.append(node);return node;
   };
-  add('rect',{x:left,y:layout.top,width:right-left,height:layout.areas.B.bottom-layout.top,class:'plot-background'});
-  add('rect',{x:left,y:layout.areas.C.top,width:right-left,height:layout.areas.C.bottom-layout.areas.C.top,class:'plot-background'});
+  add('rect',{x:left,y:layout.top,width:right-left,height:layout.areas.B.bottom-layout.top,class:'plot-background live-history-background'});
+  add('rect',{x:left,y:layout.areas.C.top,width:right-left,height:layout.areas.C.bottom-layout.areas.C.top,class:'plot-background live-history-background'});
   const defs=add('defs'),grid=add('g',{'data-layer':'grid'}),allMarks=add('g',{'data-layer':'measurements'}),areaMarks={};
   const timeLayers=drawTimeAxis(add,layout,x,start,end,defs,grid);
   let stormLayer=null;
@@ -487,6 +487,8 @@
    add('rect',{x:layout.left,y:box.top,width:layout.right-layout.left,height:box.bottom-box.top},undefined,clip);
    const clipped=add('g',{'clip-path':'url(#live-detail-grid-'+name+')'},undefined,grid),lines=add('g',{},undefined,clipped);
    layers.push(lines);
+   const cells=Layout.timeCells(ticks,start-padding,end+padding).primary;
+   for(const cell of cells)if(cell.alternate)add('rect',{x:x(cell.start),y:box.top,width:x(cell.end)-x(cell.start),height:box.bottom-box.top,class:'live-history-interval','pointer-events':'none'},undefined,lines);
    const positions=new Map(ticks.ticks.map(tick=>[tick.time,tick.major]));
    for(const midnight of ticks.midnights)positions.set(midnight,true);
    for(const [time,major] of positions){

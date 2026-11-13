@@ -711,3 +711,6 @@ body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 0 !im
 }
 
 #liveArchiveDialog #archiveTooltip>div.archive-tip-storm { display: block; color: var(--text); font-size: 13px; }
+#liveArchiveDialog .live-history-background { fill: var(--live-history-surface,var(--chart-surface)); }
+#liveArchiveDialog .live-history-interval { fill: var(--text); opacity: var(--live-history-stripe-opacity,0); }
+.live-history-background-settings { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 4px; }
