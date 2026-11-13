@@ -53,6 +53,11 @@
  const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch(error){return fallback}};
  let config=Layout.defaults(),activeView='',configured=false,opened=false,pan=false,drag=null,plot=null;
  let source=null,available=[],shown=[],stormData=null,shownWindow=null,controller=null,revision=0,loaded=new Map(),refreshTimer,warmTimer,warmController=null,warmTargets=[],warming=false;
+ let smoothing=0;try{smoothing=Math.max(0,Math.min(5,parseInt(localStorage.getItem('wetter.liveSmoothing'))||0))}catch(error){}
+ const smoothingLabels=['Aus','Sehr schwach','Schwach','Mittel','Stark','Sehr stark'];
+ function smoothingButton(){$('archiveSmoothing').textContent='∿ '+smoothingLabels[smoothing];$('archiveSmoothing').setAttribute('aria-pressed',String(smoothing>0))}
+ smoothingButton();
+ $('archiveSmoothing').onclick=()=>{smoothing=(smoothing+1)%6;try{localStorage.setItem('wetter.liveSmoothing',String(smoothing))}catch(error){}smoothingButton();draw()};
  let lastRange='24',lastMode='rolling',frame=0;
  const expandedScales=new Set();
  let timeAxisCache=null;
@@ -225,6 +230,21 @@
   }
   if(config.storm){const label=document.createElement('span');label.textContent='⚡ Gewitter';legend.append(label)}
  }
+ function drawStatistics(visible){
+  const host=$('archiveStatistics');host.replaceChildren();
+  const append=(label,value,ink)=>{const item=document.createElement('span');item.style.color=ink;const name=document.createElement('span');name.textContent=label+' ';const data=document.createElement('b');data.textContent=value;item.append(name,data);host.append(item)};
+  for(const spec of visible){
+   const stats=Layout.statistics(spec);if(!stats)continue;
+   const unit=spec.unit?' '+spec.unit:'';
+   const value='sum' in stats?'Σ '+(stats.partial?'≥ ':'')+format(stats.sum)+unit:'change' in stats?'Δ '+(stats.change>0?'+':'')+format(stats.change)+unit:'Min '+format(stats.min)+' / Max '+format(stats.max)+unit;
+   append(spec.label,value,color(spec));
+  }
+  if(config.storm&&stormData){
+   const points=(stormData.points||[]).filter(p=>p.time>=shownWindow.start&&p.time<=shownWindow.end&&p.value>0);
+   const count=points.reduce((s,p)=>s+p.value,0),distances=points.map(p=>p.nearest).filter(Number.isFinite);
+   append('⚡ Gewitter',format(count,0)+' Blitze'+(distances.length?' · nächster '+format(Math.min(...distances))+' km':''),'var(--text)');
+  }
+ }
  function plotWindow(){
   const now=Date.now()/1000,observed=Math.min(now,source?.observedEnd??now);
   if(config.range!=='custom'){
@@ -353,10 +373,10 @@
  }
  function draw(){
   svg.replaceChildren();tip.hidden=true;plot=null;
-  if(!shownWindow){$('archiveUpperGrip').hidden=$('archiveLowerGrip').hidden=true;return}
+  if(!shownWindow){$('archiveStatistics').replaceChildren();$('archiveUpperGrip').hidden=$('archiveLowerGrip').hidden=true;return}
   const {start,end,period}=shownWindow;
-  const height=Math.max(320,canvas.clientHeight);
-  const visible=visibleSeries();
+  const height=Math.max(140,canvas.clientHeight);
+  const visible=visibleSeries();drawStatistics(visible);
   const areaAxes=drag?.axes||Object.fromEntries(Layout.areas.map(area=>[area,Layout.axesFor(visible.filter(spec=>config.assignments[spec.key]===area),config.bounds[area])]));
   const columns=Layout.axisColumns(Object.values(areaAxes));
   const width=Math.max(320,canvas.clientWidth,columns.left+columns.right.reduce((sum,value)=>sum+value,0)+230);
@@ -383,7 +403,7 @@
    const axes=areaAxes[area],ticks=area==='B'?2:4;
    axes.forEach((axis,index)=>{
     const values=axis.key==='direction'?Layout.directionTicks(axis.min,axis.max,box.bottom-box.top-34):
-     Array.from({length:ticks+1},(_,i)=>({value:axis.min+i/ticks*(axis.max-axis.min),label:format(axis.min+i/ticks*(axis.max-axis.min))}));
+     Layout.numericTicks(axis.min,axis.max,ticks,['temperature','humidity','pressure','solar','wind'].includes(axis.key)).map(value=>({value,label:format(value,['temperature','humidity','pressure','solar','wind'].includes(axis.key)?0:1)}));
     const ink=axis.key==='direction'?'var(--text)':color(axis.series[0]),labelX=layout.axisX[index];
     for(const tick of values){
      const fraction=(tick.value-axis.min)/(axis.max-axis.min);
@@ -417,8 +437,7 @@
        for(const field of ['minimum','maximum'])add('path',{d:'M'+group.map(point=>coord(point,point[field])).join('L'),fill:'none',stroke:field==='maximum'?'#ff7777':'#77a9ef','stroke-width':1.2},undefined,marks);
       }
       if(group.length===1){add('circle',{cx:x(group[0].time),cy:y(group[0].value),r:2.5,fill:stroke},undefined,marks);continue}
-      const wind=spec.axis==='wind',radius=wind?(config.range==='168'?3:config.range==='24'?2:period?1:0):0;
-      const curve=WeatherLiveCardData.smoothSegment(group,radius);
+      const curve=WeatherLiveCardData.smoothSegment(group,[0,1,2,4,8,16][smoothing]);
       add('path',{d:'M'+curve.map(point=>coord(point)).join('L'),fill:'none',stroke,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'},undefined,marks);
      }
     }
@@ -442,7 +461,7 @@
    }
   }
   const cursor=add('line',{x1:left,x2:left,y1:config.storm?1:layout.top,y2:layout.bottom,class:'live-mini-cursor',visibility:'hidden','pointer-events':'none'});
-  plot={...layout,width,start,end,x,cursor,axes:areaAxes,layers:[...Object.values(areaMarks),...(stormLayer?[stormLayer]:[]),...timeLayers],storms,budget:Math.max(230,height-layout.top-74)};
+  plot={...layout,width,start,end,x,cursor,axes:areaAxes,layers:[...Object.values(areaMarks),...(stormLayer?[stormLayer]:[]),...timeLayers],storms,budget:Math.max(40,height-layout.top-74)};
   for(const [id,position,value] of [['archiveUpperGrip',layout.separator,config.heights.upper],['archiveLowerGrip',layout.bottom+4,config.heights.lower]]){
    const grip=$(id);grip.hidden=false;grip.style.top=position+'px';grip.style.left=left+'px';grip.style.width=(right-left)+'px';grip.setAttribute('aria-valuenow',String(Math.round(value*100)));
   }
@@ -470,9 +489,9 @@
   add('rect',{x:layout.left-1,y:base,width:layout.right-layout.left+2,height:54},undefined,clip);
   const clipped=add('g',{'clip-path':'url(#live-detail-time-labels)'}),labels=add('g',{},undefined,clipped);
   layers.push(labels);
-  const cells=Layout.timeCells(ticks,start-padding,end+padding);
-  for(const [row,items] of [cells.primary,cells.secondary].entries())for(const cell of items){
-   add('rect',{x:x(cell.start),y:base+(row?31:0),width:Math.max(0,x(cell.end)-x(cell.start)),height:row?23:31,class:'archive-time-cell'+(cell.alternate?' is-alternate':''),'pointer-events':'none'},undefined,labels);
+  for(const group of ticks.groups){
+   const xx=x(group.start);
+   add('line',{x1:xx,x2:xx,y1:base+33,y2:base+53,class:'archive-group-boundary'},undefined,labels);
   }
   for(const tick of ticks.ticks){
    const xx=x(tick.time),yy=base+(ticks.rotate?12:20);
@@ -568,17 +587,18 @@
   grip.onpointerdown=event=>{
    if(event.button!==0||!plot)return;
    event.preventDefault();hideTip();grip.setPointerCapture(event.pointerId);
+   const total=config.heights.upper+config.heights.lower;config.heights.upper/=total;config.heights.lower/=total;
    resize={pointer:event.pointerId,y:event.clientY,value:config.heights[key],budget:plot.budget};
   };
   grip.onpointermove=event=>{
    if(resize?.pointer!==event.pointerId)return;
-   config.heights[key]=Math.max(min,Math.min(1.5,resize.value+(event.clientY-resize.y)/resize.budget));draw();
+   config.heights[key]=Math.max(min,Math.min(1-(key==='upper'?.12:.2),resize.value+(event.clientY-resize.y)/resize.budget));config.heights[key==='upper'?'lower':'upper']=1-config.heights[key];draw();
   };
   const finish=event=>{if(resize?.pointer!==event.pointerId)return;resize=null;if(grip.hasPointerCapture(event.pointerId))grip.releasePointerCapture(event.pointerId);dirty()};
   grip.onpointerup=finish;grip.onpointercancel=finish;
   grip.onkeydown=event=>{
    if(!['ArrowUp','ArrowDown'].includes(event.key))return;
-   event.preventDefault();config.heights[key]=Math.max(min,Math.min(1.5,config.heights[key]+(event.key==='ArrowDown'?.03:-.03)));dirty();draw();
+   event.preventDefault();config.heights[key]=Math.max(min,Math.min(1-(key==='upper'?.12:.2),config.heights[key]+(event.key==='ArrowDown'?.03:-.03)));config.heights[key==='upper'?'lower':'upper']=1-config.heights[key];dirty();draw();
   };
  }
  resizeGrip('archiveUpperGrip','upper',.2);resizeGrip('archiveLowerGrip','lower',.12);

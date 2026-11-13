@@ -67,12 +67,26 @@
   const right=Math.max(left+100,width-8-rightWidths.reduce((sum,value)=>sum+value,0));
   const axisX=[left-6,...rightWidths.map((value,index)=>right+5+rightWidths.slice(0,index).reduce((sum,w)=>sum+w,0))];
   const top=typeof storm==='number'&&storm>0?storm:storm?38:14,axisHeight=60,gap=14;
-  const budget=Math.max(230,height-top-axisHeight-gap);
-  const upper=Math.max(190,budget*heights.upper),lower=Math.max(85,budget*heights.lower);
-  const split=top+upper-Math.max(62,upper*heights.b),separator=top+upper+gap/2;
+  const budget=Math.max(40,height-top-axisHeight-gap);
+  const total=Math.max(1,heights.upper+heights.lower);
+  const upper=budget*heights.upper/total,lower=budget*heights.lower/total;
+  const split=top+upper-Math.min(upper*.5,Math.max(Math.min(40,upper*.25),upper*heights.b)),separator=top+upper+gap/2;
   const cTop=top+upper+gap,cBottom=cTop+lower;
   return {left,right,axisX,top,separator,bottom:cBottom,height:cBottom+axisHeight,
    areas:{A:{top,bottom:split},B:{top:split,bottom:top+upper},C:{top:cTop,bottom:cBottom}}};
+ }
+ function numericTicks(min,max,count,integer=false){
+  if(!integer)return Array.from({length:count+1},(_,i)=>min+i/count*(max-min));
+  const step=Math.max(1,Math.ceil((max-min)/count)),values=[];
+  for(let v=Math.ceil(min/step)*step;v<=max;v+=step)values.push(v);
+  return values;
+ }
+ function statistics(spec){
+  const points=spec.data.points.filter(p=>Number.isFinite(p.value)).sort((a,b)=>a.time-b.time);
+  if(!points.length)return null;
+  if(spec.key==='rain_total_mm')return {sum:points.reduce((s,p)=>s+p.value,0),partial:points.some(p=>p.incomplete)||spec.data.baseline_available===false||spec.data.unknown_intervals>0};
+  if(spec.key==='pressure_hpa')return {change:points.at(-1).value-points[0].value};
+  return {min:Math.min(...points.map(p=>p.minimum??p.value)),max:Math.max(...points.map(p=>p.maximum??p.value))};
  }
  function shifted(window,fraction){
   const delta=(window.end-window.start)*fraction;
@@ -161,7 +175,7 @@
   const latest=entries.at(-1)?.data||{points:[]};
   return {covered,data:{...latest,points:[...points.values()].sort((a,b)=>a.time-b.time)}};
  }
- const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,shifted,compass,directionTicks,axisColumns,timeTicks,timeCells,bufferWindow,cachedSeries};
+ const api={definitions,areas,ranges,resolutions,valid,validViews,defaults,axesFor,geometry,shifted,compass,directionTicks,axisColumns,numericTicks,statistics,timeTicks,timeCells,bufferWindow,cachedSeries};
  if(typeof module!=='undefined')module.exports=api;
  else root.WeatherLiveLayout=api;
 })(typeof window==='undefined'?this:window);
