@@ -187,11 +187,11 @@
   const secondary=axis.groups.map(g=>({start:Math.max(start,g.start),end:Math.min(end,g.end),alternate:alternate(g.time,axis.groupUnit)})).filter(g=>g.end>g.start);
   return {primary,secondary};
  }
- function bufferWindow(window,code,now=Date.now()/1000){
+ function bufferWindow(window,code,now=Date.now()/1000,observedEnd=now){
   const span=window.end-window.start,maxSpan=window.period?366*86400:code?10*86400:366*86400;
   const margin=Math.min(span*.5,Math.max(0,maxSpan-span)/2);
-  const start=Math.max(code?now-370*86400:0,window.start-margin);
-  return {...window,start,end:window.end+margin,observedEnd:Math.min(window.end+margin,now)};
+  const start=Math.max(code?now-370*86400+600:0,window.start-margin);
+  return {...window,start,end:window.end+margin,observedEnd:Math.min(window.end+margin,observedEnd,now)};
  }
  function cachedSeries(entries,start,end,period){
   const relevant=entries.filter(entry=>entry.end>=start&&entry.start<=end);

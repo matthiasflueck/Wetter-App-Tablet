@@ -284,7 +284,7 @@
   const cache=loaded,identity=cacheIdentity(spec,window,code);
   const cached=Layout.cachedSeries(cache.get(identity)||[],start,observedEnd,period);
   if(cached.covered)return cached.data;
-  const buffered=Layout.bufferWindow(window,code,source?.observedEnd??Date.now()/1000);
+  const buffered=Layout.bufferWindow(window,code,Date.now()/1000,source?.observedEnd??Date.now()/1000);
   const archive=spec.archive,storm=spec.key==='lightning_count';
   const aggregation=storm?'lightning_events':spec.key==='rain_total_mm'?'rain_increment':period?'calendar':null;
   const query={provider:archive.provider,sensor:archive.sensor,metric:archive.metric,unit:archive.unit,start:buffered.start,end:buffered.observedEnd};
