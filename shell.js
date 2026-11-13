@@ -21,7 +21,7 @@ function applyDiagramBackground(){
  document.documentElement.style.setProperty('--chart-surface',preferences.diagramBackgroundEnabled?surface:'transparent');
  const liveColor=preferences.liveHistoryBackgroundColor||(preferences.theme==='light'?'#e5edf2':'#233342');
  document.documentElement.style.setProperty('--live-history-surface',preferences.liveHistoryBackgroundEnabled?liveColor:'transparent');
- document.documentElement.style.setProperty('--live-history-stripe-opacity',preferences.liveHistoryStripes?'.09':'0');
+ document.documentElement.style.setProperty('--live-history-stripe-opacity',preferences.liveHistoryStripes?'.035':'0');
  $('diagramBackgroundEnabled').checked=preferences.diagramBackgroundEnabled;$('diagramBackgroundColor').value=color;$('diagramBackgroundColor').disabled=!preferences.diagramBackgroundEnabled;
  $('liveHistoryColorCode').textContent=liveColor.toUpperCase();for(const button of document.querySelectorAll('[data-live-background]'))button.setAttribute('aria-pressed',String(button.dataset.liveBackground===liveColor));
  $('liveHistoryBackgroundEnabled').checked=preferences.liveHistoryBackgroundEnabled;$('liveHistoryBackgroundColor').value=liveColor;$('liveHistoryBackgroundColor').disabled=!preferences.liveHistoryBackgroundEnabled;$('liveHistoryStripes').checked=preferences.liveHistoryStripes;
