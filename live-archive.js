@@ -56,12 +56,12 @@
  let source=null,available=[],shown=[],stormData=null,shownWindow=null,controller=null,revision=0,loaded=new Map(),refreshTimer,warmTimer,warmController=null,warmTargets=[],warming=false;
  let smoothing=0;try{smoothing=Math.max(0,Math.min(5,parseInt(localStorage.getItem('wetter.liveSmoothing'))||0))}catch(error){}
  const smoothingLabels=['Aus','Sehr schwach','Schwach','Mittel','Stark','Sehr stark'];
- function smoothingButton(){$('archiveSmoothing').textContent='∿ '+smoothingLabels[smoothing];$('archiveSmoothing').setAttribute('aria-pressed',String(smoothing>0))}
+ function smoothingButton(){$('archiveSmoothing').textContent='Glättung · '+smoothingLabels[smoothing];$('archiveSmoothing').setAttribute('aria-pressed',String(smoothing>0))}
  smoothingButton();
  $('archiveSmoothing').onclick=()=>{smoothing=(smoothing+1)%6;try{localStorage.setItem('wetter.liveSmoothing',String(smoothing))}catch(error){}smoothingButton();draw()};
  const statsButton=$('archiveStatsToggle');
  let statisticsVisible=read('wetter.liveHistoryStatistics',true)!==false;
- function reflectStatistics(){statsButton.setAttribute('aria-pressed',String(statisticsVisible));$('archiveStatistics').hidden=!statisticsVisible}
+ function reflectStatistics(){statsButton.textContent='Kennzahlen · '+(statisticsVisible?'Ein':'Aus');statsButton.setAttribute('aria-pressed',String(statisticsVisible));$('archiveStatistics').hidden=!statisticsVisible}
  statsButton.onclick=()=>{statisticsVisible=!statisticsVisible;try{localStorage.setItem('wetter.liveHistoryStatistics',JSON.stringify(statisticsVisible))}catch(error){}reflectStatistics();scheduleDraw()};
  reflectStatistics();
  const touchPoints=new Map();let pinch=null,suppressTouch=false,wheelTimer;
@@ -113,7 +113,9 @@
  function setConfiguration(value){
   configured=value;$('archiveConfiguration').hidden=!value;
   $('archiveConfigure').setAttribute('aria-pressed',String(value));
-  $('archiveConfigure').textContent=value?'✓ Fertig':'⚙ Anpassen';
+  $('archiveConfigure').setAttribute('aria-expanded',String(value));
+  $('archiveConfigure').setAttribute('aria-label',value?'Live-Verlauf-Anpassung schliessen':'Live-Verlauf anpassen');
+  $('archiveConfigure').title=value?'Anpassung schliessen':'Live-Verlauf anpassen';
   dialog.classList.toggle('is-configuring',value);
   scheduleDraw();
  }

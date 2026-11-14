@@ -750,3 +750,10 @@ body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 0 !im
 #liveSettingsPanel :is(#liveGaugeScaleToggle,#liveScaleToggle,#liveArrange) { width: 100%; min-height: 44px; padding: 9px 12px; text-align: left; font-size: 14px; }
 #liveSettingsPanel button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
 body.focus-mode #liveSettingsPanel .live-settings-order { display: none; }
+#liveArchiveDialog .archive-toolbar :is(#archiveConfigure,#archiveRefresh,#closeLiveArchive,#archiveBack,#archiveForward) { display: inline-grid; place-items: center; width: 46px; min-width: 46px; height: 44px; padding: 8px; flex: none; }
+#liveArchiveDialog .archive-toolbar :is(#archiveConfigure,#archiveRefresh,#closeLiveArchive) svg { width: 25px; height: 25px; }
+#liveArchiveDialog .archive-display-settings { margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
+#liveArchiveDialog .archive-display-settings h4 { margin: 0 0 9px; font-size: 12px; }
+#liveArchiveDialog .archive-display-settings>div { display: grid; gap: 8px; }
+#liveArchiveDialog .archive-display-settings button { min-height: 42px; width: 100%; text-align: left; padding: 8px 10px; font-size: 13px; }
+#liveArchiveDialog .archive-display-settings button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }

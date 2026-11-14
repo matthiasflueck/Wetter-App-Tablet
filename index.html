@@ -56,16 +56,16 @@ header,main,.app-shell{max-width:none}header{gap:16px}header>.brand{flex:1}heade
   <select id="archiveStation" aria-label="Wetterstation"></select>
   <select id="archiveRange" aria-label="Zeitraum"></select>
   <label id="archiveModeLabel" hidden><select id="archiveMode" aria-label="Zeitraumart"><option value="rolling">Gleitend</option><option value="calendar">Kalender</option></select></label>
-  <div class="archive-toolbar-actions"><button id="archiveBack" type="button" title="Zeitraum zurückschieben" aria-label="Zeitraum zurückschieben">‹</button>
-  <button id="archiveForward" type="button" title="Zeitraum vorschieben" aria-label="Zeitraum vorschieben">›</button>
+  <div class="archive-toolbar-actions"><button id="archiveBack" type="button" title="Zeitraum zurückschieben" aria-label="Zeitraum zurückschieben"><svg aria-hidden="true" viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
+  <button id="archiveForward" type="button" title="Zeitraum vorschieben" aria-label="Zeitraum vorschieben"><svg aria-hidden="true" viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
   <button id="archiveNow" type="button" title="Zur gewählten aktuellen Zeitspanne">Jetzt</button>
   <button id="archivePan" type="button" aria-pressed="false" title="Zeitachse mit Maus oder Finger verschieben">↔ Pan</button>
-  <button id="archiveSmoothing" type="button" title="Kurvenglättung stufenweise ändern" aria-label="Kurvenglättung">∿ Aus</button>
-  <button id="archiveStatsToggle" type="button" aria-pressed="true" title="Kennzahlen ein- oder ausblenden">Kennzahlen</button>
+  
+  
   <button id="archiveFullscreen" type="button" aria-pressed="false" title="Live Verlauf im Vollbild anzeigen">⛶ Vollbild</button>
-  <button id="archiveConfigure" type="button" aria-pressed="false" aria-controls="archiveConfiguration">⚙ Anpassen</button>
-  <button id="archiveRefresh" type="button" title="Daten aktualisieren" aria-label="Daten aktualisieren">↻</button>
-  <button id="closeLiveArchive" type="button" aria-label="Zum Live Dashboard" title="Zum Live Dashboard">↩</button></div>
+  <button id="archiveConfigure" type="button" aria-pressed="false" aria-expanded="false" aria-label="Live-Verlauf anpassen" title="Live-Verlauf anpassen" aria-controls="archiveConfiguration"><svg aria-hidden="true" viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 3-.6 2.1-1.6.9-2.1-.5-2 3.5 1.5 1.6v1.8l-1.5 1.5 2 3.6 2.1-.5 1.6.9.6 2.1h4.1l.6-2.1 1.6-.9 2.1.5 2-3.6-1.5-1.5v-1.8L20.4 9l-2-3.5-2.1.5-1.6-.9L14.1 3z"/><circle cx="11.8" cy="11.5" r="3.2"/></svg></button>
+  <button id="archiveRefresh" type="button" title="Daten aktualisieren" aria-label="Daten aktualisieren"><svg aria-hidden="true" viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M19 12a7 7 0 1 0-1.9 5.1"/></svg></button>
+  <button id="closeLiveArchive" type="button" aria-label="Zum Live Dashboard" title="Zum Live Dashboard"><svg aria-hidden="true" viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button></div>
  </div>
  <div id="archiveConfiguration" hidden>
   <div class="archive-config-tools">
@@ -80,6 +80,7 @@ header,main,.app-shell{max-width:none}header{gap:16px}header>.brand{flex:1}heade
    <label data-archive-custom hidden>Auflösung<select id="archiveResolution"><option value="auto">Auto</option><option value="raw">Fein</option><option value="day">Tag</option><option value="month">Monat</option></select></label>
   </div></div>
   
+  <section class="archive-display-settings" aria-label="Darstellung im Live Verlauf"><h4>Anzeige</h4><div><button id="archiveStatsToggle" type="button" aria-pressed="true" title="Kennzahlen ein- oder ausblenden">Kennzahlen</button><button id="archiveSmoothing" type="button" title="Kurvenglättung stufenweise ändern" aria-label="Kurvenglättung">∿ Aus</button></div></section>
   <div id="archiveMetrics" class="archive-config-grid" aria-label="Messgrössen und Skalen nach Bereich"></div>
   <details class="archive-background-settings" open><summary>Diagrammhintergrund</summary><div class="archive-background-presets" role="group" aria-label="Standardfarben Diagrammhintergrund"><button type="button" data-live-background="#233342" aria-pressed="false"><span style="background:#233342" aria-hidden="true"></span>Schiefer</button><button type="button" data-live-background="#2b323a" aria-pressed="false"><span style="background:#2b323a" aria-hidden="true"></span>Graphit</button><button type="button" data-live-background="#203b3f" aria-pressed="false"><span style="background:#203b3f" aria-hidden="true"></span>Petrol</button><button type="button" data-live-background="#202c43" aria-pressed="false"><span style="background:#202c43" aria-hidden="true"></span>Nachtblau</button><button type="button" data-live-background="#e5edf2" aria-pressed="false"><span style="background:#e5edf2" aria-hidden="true"></span>Nebel</button><button type="button" data-live-background="#e0ece8" aria-pressed="false"><span style="background:#e0ece8" aria-hidden="true"></span>Salbei</button></div><div class="archive-background-controls"><label><span>Diagrammfläche</span><span><input id="liveHistoryBackgroundEnabled" type="checkbox" checked> Hintergrund anzeigen</span></label><label>Eigene Hintergrundfarbe<span class="archive-background-custom"><input id="liveHistoryBackgroundColor" type="color" value="#233342"><output id="liveHistoryColorCode"></output></span></label><label><span>Zeitintervalle</span><span><input id="liveHistoryStripes" type="checkbox"> Abwechselnd schattieren</span></label><button id="liveHistoryBackgroundDefault" type="button">GUI-Standard</button></div><p class="settings-footnote">Die gewählte Farbe wird unverändert dargestellt und mitsynchronisiert.</p></details>
  </div>
