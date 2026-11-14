@@ -750,10 +750,18 @@ body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 0 !im
 #liveSettingsPanel :is(#liveGaugeScaleToggle,#liveScaleToggle,#liveArrange) { width: 100%; min-height: 44px; padding: 9px 12px; text-align: left; font-size: 14px; }
 #liveSettingsPanel button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
 body.focus-mode #liveSettingsPanel .live-settings-order { display: none; }
-#liveArchiveDialog .archive-toolbar :is(#archiveConfigure,#archiveRefresh,#closeLiveArchive,#archiveBack,#archiveForward) { display: inline-grid; place-items: center; width: 46px; min-width: 46px; height: 44px; padding: 8px; flex: none; }
+#liveArchiveDialog .archive-toolbar :is(#archiveConfigure,#archiveRefresh,#closeLiveArchive,#archiveBack,#archiveForward) { display: inline-grid; place-items: center; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 5px; flex: none; }
 #liveArchiveDialog .archive-toolbar :is(#archiveConfigure,#archiveRefresh,#closeLiveArchive) svg { width: 25px; height: 25px; }
 #liveArchiveDialog .archive-display-settings { margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
 #liveArchiveDialog .archive-display-settings h4 { margin: 0 0 9px; font-size: 12px; }
 #liveArchiveDialog .archive-display-settings>div { display: grid; gap: 8px; }
 #liveArchiveDialog .archive-display-settings button { min-height: 42px; width: 100%; text-align: left; padding: 8px 10px; font-size: 13px; }
 #liveArchiveDialog .archive-display-settings button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
+#fullscreenMenuToggle { display: none; }
+body.focus-mode #fullscreenMenuToggle { display: grid; position: fixed; top: 8px; left: 8px; z-index: 310; place-items: center; width: 36px; height: 36px; min-width: 36px; padding: 5px; background: var(--panel); border-radius: 9px; }
+body.focus-mode #fullscreenMenuToggle[aria-expanded=true] { color: var(--accent); border-color: var(--accent); }
+body.focus-mode.fullscreen-nav-open #navigation { display: block !important; position: fixed; inset: 52px auto 12px 8px; width: min(270px,calc(100vw - 24px)); max-width: none; z-index: 300; overflow-y: auto; padding: 14px; margin: 0; transform: none; visibility: visible; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px #0006; }
+body.focus-mode.fullscreen-nav-open #navigation a { display: block; }
+body.focus-mode #view-live .live-period-controls { padding-left: 44px; }
+body.focus-mode #liveArchiveDialog .archive-toolbar { padding-left: 44px; }
+body.focus-mode [data-view]:not(#view-live):not(#view-live-history) { padding-top: 44px !important; }
