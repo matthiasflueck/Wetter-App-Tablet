@@ -737,3 +737,16 @@ body.focus-mode #view-live-history { height: calc(100dvh - 24px); padding: 0 !im
 #liveWebcamDialog .live-webcam-player { height: min(65dvh,590px); min-height: 230px; background: #101820; }
 #liveWebcamDialog iframe { width: 100%; height: 100%; display: block; border: 0; }
 #liveWebcamDialog .live-webcam-source { margin: 10px 0 0; font-size: 11px; }
+#view-live #liveSettingsToggle,#view-live #liveWebcam { display: inline-grid; place-items: center; width: 46px; min-width: 46px; height: 44px; padding: 8px; border-radius: 10px; }
+#view-live #liveSettingsToggle[aria-expanded=true] { border-color: var(--accent); color: var(--accent); }
+#liveSettingsPanel { position: fixed; right: 14px; z-index: 190; width: min(310px,calc(100vw - 28px)); padding: 16px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); box-shadow: 0 12px 40px #0005; }
+#liveSettingsPanel[hidden] { display: none !important; }
+#liveSettingsPanel .live-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#liveSettingsPanel h3 { font-size: 15px; margin: 0; }
+#liveSettingsPanel #liveSettingsClose { width: 36px; height: 36px; padding: 0; font-size: 24px; }
+#liveSettingsPanel section { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+#liveSettingsPanel h4 { margin: 0 0 9px; font-size: 12px; color: var(--muted); }
+#liveSettingsPanel .live-settings-modes { display: grid; gap: 9px; }
+#liveSettingsPanel :is(#liveGaugeScaleToggle,#liveScaleToggle,#liveArrange) { width: 100%; min-height: 44px; padding: 9px 12px; text-align: left; font-size: 14px; }
+#liveSettingsPanel button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
+body.focus-mode #liveSettingsPanel .live-settings-order { display: none; }

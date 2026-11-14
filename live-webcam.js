@@ -4,7 +4,7 @@
  const root=document.getElementById('view-live'),station=document.getElementById('liveStation'),archive=document.getElementById('openLiveArchive');
  if(!root||!station||!archive)return;
  const cameras={arh:{id:'1697041072',name:'Altenrhein · Rheinspitz',provider:'Windy',description:'Aktualisierte Kamerabilder / 24-Stunden-Verlauf'},pil:{name:'Pilatus · Kulm',provider:'Roundshot',url:'https://pilatus.roundshot.com/',description:'360°-Panorama · Pilatus-Bahnen / Roundshot'}};
- const button=document.createElement('button');button.id='liveWebcam';button.type='button';button.textContent='Webcam';button.title='Webcam der gewählten Wetterstation öffnen';button.hidden=true;archive.before(button);
+ const button=document.createElement('button');button.id='liveWebcam';button.type='button';button.setAttribute('aria-label','Webcam öffnen');button.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg>';button.title='Webcam der gewählten Wetterstation öffnen';button.hidden=true;archive.before(button);
  const dialog=document.createElement('dialog');dialog.id='liveWebcamDialog';dialog.setAttribute('aria-labelledby','liveWebcamTitle');
  const header=document.createElement('div');header.className='live-webcam-heading';
  const title=document.createElement('h3');title.id='liveWebcamTitle';

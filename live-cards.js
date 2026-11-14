@@ -449,3 +449,22 @@
  function fit(){if(!document.body.classList.contains('focus-mode'))return;if(arranging){arranging=false;$('liveArrange').setAttribute('aria-pressed','false');orderControls()}document.documentElement.style.setProperty('--live-screen-height',window.innerHeight+'px')}
  window.addEventListener('resize',fit);fit();snapshot=window.WeatherCurrentLiveState?.();if(snapshot){applyDisplay();load()};
 })();
+
+/* Compact dashboard settings drawer; existing buttons keep their event handlers. */
+(()=>{
+ const button=document.getElementById('liveSettingsToggle'),panel=document.getElementById('liveSettingsPanel'),close=document.getElementById('liveSettingsClose');
+ if(!button||!panel||!close)return;
+ function position(){
+  if(panel.hidden)return;
+  const toolbar=document.querySelector('#view-live .live-dashboard-toolbar').getBoundingClientRect();
+  const top=Math.max(8,Math.min(toolbar.bottom+8,window.innerHeight-240));
+  panel.style.top=top+'px';panel.style.maxHeight=Math.max(180,window.innerHeight-top-12)+'px';
+ }
+ function toggle(open,restore=false){panel.hidden=!open;button.setAttribute('aria-expanded',String(open));if(open){position();close.focus()}else if(restore)button.focus()}
+ button.onclick=()=>toggle(panel.hidden);close.onclick=()=>toggle(false,true);
+ document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!button.contains(event.target))toggle(false)});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){event.preventDefault();event.stopImmediatePropagation();toggle(false,true)}},true);
+ document.getElementById('liveArrange').addEventListener('click',()=>toggle(false));
+ window.addEventListener('hashchange',()=>{if(location.hash!=='#live')toggle(false)});
+ window.addEventListener('resize',position);window.addEventListener('scroll',position,{passive:true});
+})();
