@@ -8,11 +8,19 @@
   const value=temperature+.33*vapour-.70*(windKmh/3.6)-4;
   return Number.isFinite(value)?value:null;
  }
+ // Windchill uses mean wind in km/h; calm cold weather falls back to air temperature.
+ function feelsLikeTemperature(temperature,humidity,windKmh){
+  if(!Number.isFinite(temperature)||temperature<=-100||temperature>=100||!Number.isFinite(windKmh)||windKmh<0)return null;
+  if(temperature>10)return apparentTemperature(temperature,humidity,windKmh);
+  if(windKmh<4.8)return temperature;
+  const wind=Math.pow(windKmh,.16);
+  return Math.min(temperature,13.12+.6215*temperature-11.37*wind+.3965*temperature*wind);
+ }
  function apparentFromSensors(sensors){
   const temperature=sensors.find(s=>s.kind==='thermohygro'),wind=sensors.find(s=>s.kind==='wind');
   if(!temperature||!wind)return null;
   const t=temperature.observation,w=wind.observation;if(!t||!w)return null;
-  return apparentTemperature(t.values?.temperature_c,t.values?.humidity_percent,w.values?.wind_kmh);
+  return feelsLikeTemperature(t.values?.temperature_c,t.values?.humidity_percent,w.values?.wind_kmh);
  }
  const liveFields={thermohygro:['temperature_c','humidity_percent'],wind:['wind_kmh','gust_kmh','wind_direction_degrees'],rain:['rain_total_mm'],solar:['solar_wm2','uv_index'],pressure:['pressure_hpa','pressure_qff_hpa'],lightning:['lightning_count','lightning_distance_km','lightning_event_at']};
  function validLiveValue(key,value){
@@ -147,7 +155,7 @@
   const kelvin=temperature+273.15+.00325*elevation;
   return pressure*Math.exp(9.80665*elevation/(287.05*kelvin));
  }
- const api={seaLevelPressure,liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,apparentFromSensors,lastLiveSnapshot,retainLastLive,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
+ const api={seaLevelPressure,liveVersion,createRequestQueue,aggregateLong,rangeWindow,apparentTemperature,feelsLikeTemperature,apparentFromSensors,lastLiveSnapshot,retainLastLive,binBars,segments,smoothSegment,midnight,timeAxis,sunTimes,extrema,rainTotal,baseline};if(typeof module!=='undefined')module.exports=api;else root.WeatherLiveCardData=api;
 })(typeof window==='undefined'?this:window);
 /* Touch devices implicitly capture the first cell: inspect the cell under the finger
    instead, so heatmaps and column charts can be scrubbed continuously. */
