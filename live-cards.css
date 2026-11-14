@@ -765,3 +765,7 @@ body.focus-mode.fullscreen-nav-open #navigation a { display: block; }
 body.focus-mode #view-live .live-period-controls { padding-left: 44px; }
 body.focus-mode #liveArchiveDialog .archive-toolbar { padding-left: 44px; }
 body.focus-mode [data-view]:not(#view-live):not(#view-live-history) { padding-top: 44px !important; }
+#liveWebcamDialog .live-webcam-choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+#liveWebcamDialog .live-webcam-choices[hidden] { display: none; }
+#liveWebcamDialog .live-webcam-choices button { min-height: 44px; padding: 9px 18px; }
+#liveWebcamDialog .live-webcam-choices button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
