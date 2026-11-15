@@ -2,6 +2,7 @@
 (()=>{
  'use strict';
  const root=document.getElementById('view-station-map'),data=window.WeatherStationMapData;if(!root||!data)return;
+ const openMap=document.getElementById('openStationMap');if(openMap)openMap.onclick=()=>{location.hash='station-map'};
  const $=id=>document.getElementById(id),svg=$('stationMapSvg'),world=$('stationMapWorld'),labels=$('stationMapLabels'),dots=$('stationMapDots'),popup=$('stationMapPopup'),panel=$('stationMapPanel'),shell=$('stationMapShell'),metric=$('stationMapMetric');
  const ns='http://www.w3.org/2000/svg',create=(tag,attrs,parent)=>{const n=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs||{}))n.setAttribute(k,v);parent?.append(n);return n};
  const metrics={temperature_c:['Temperatur','°C'],humidity_percent:['Luftfeuchtigkeit','%'],rain_total_mm:['Niederschlag · 1 h','mm'],wind_kmh:['Wind Mittel','km/h'],gust_kmh:['Böe','km/h'],wind_direction_degrees:['Windrichtung','°'],pressure_hpa:['Stationsdruck','hPa'],pressure_qff_hpa:['Meereshöhendruck','hPa'],solar_wm2:['Solarstrahlung','W/m²'],uv_index:['UV-Index',''],lightning_count:['Blitze',''],lightning_distance_km:['Blitzentfernung','km']};
