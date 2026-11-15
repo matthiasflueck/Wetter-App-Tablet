@@ -106,7 +106,7 @@
  }
  function fillStation(){
   station.replaceChildren(...Array.from($('liveStation').children,n=>n.cloneNode(true)));
-  if(!Array.from(station.options).some(option=>option.value===config.station))station.add(new Option(config.station.toUpperCase(),config.station));
+  if(!Array.from(station.options).some(option=>option.value===config.station))config.station='';
   station.value=config.station;
  }
  rangeOptions.forEach(([value,label])=>range.add(new Option(label,value)));
