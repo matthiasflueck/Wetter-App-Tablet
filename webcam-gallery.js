@@ -9,18 +9,27 @@
  const cards=webcams.list().sort((a,b)=>a.name.localeCompare(b.name,'de-CH'));
  function updateStatus(){if(loaded&&firstPreview===null)firstPreview=(performance.now()-started)/1000;status.textContent=loaded+'/'+total+' Vorschauen'+(failed?' · '+failed+' ohne Bild':'')+(loaded?' · erste '+(firstPreview??((performance.now()-started)/1000)).toFixed(1)+' s':'');}
  function previewUrl(camera){return camera.provider==='Windy'?'https://imgproxy.windy.com/_/preview/plain/current/'+camera.id+'/original.jpg':previews[camera.url];}
+ const previewCache=new Map();
+ async function getPreview(camera,{signal}={}){
+  const direct=previewUrl(camera);if(direct)return direct+'?v='+Math.floor(Date.now()/300000);
+  if(camera.provider!=='webcam.io')throw Error('Keine Bildvorschau');
+  const cached=previewCache.get(camera.url);if(cached&&Date.now()-cached.at<300000)return cached.url;
+  const now=Date.now(),encode=t=>encodeURIComponent(btoa(new Date(t).toISOString().slice(0,19).replace('T',' ')+' +0000')),query=new URLSearchParams({mode:'0',from:encode(now-3*3600000),to:encode(now+300000)});
+  const response=await fetch('https://webcam.io/api/webcams/9WNDqM/images.json?'+query,{headers:{Accept:'application/json'},signal});if(!response.ok)throw Error('Vorschau nicht verfügbar');const result=await response.json(),url=result.images?.at(-1)?.url;if(!url||!/^https:\/\/assets[0-9]+\.webcam\.io\//.test(url))throw Error('Kein aktuelles Bild');previewCache.set(camera.url,{at:Date.now(),url});return url;
+ }
+ webcams.preview=getPreview;
  function render(){
   run++;napfRequest?.abort();grid.replaceChildren();loaded=failed=0;firstPreview=null;total=cards.length;started=performance.now();updateStatus();
   for(const camera of cards){const imageRun=run;
    const tile=document.createElement('button');tile.type='button';tile.className='webcam-gallery-tile';tile.setAttribute('aria-label',camera.name+' öffnen');
    const media=document.createElement('div');media.className='webcam-gallery-media';
-   const caption=document.createElement('div');caption.className='webcam-gallery-caption';const name=document.createElement('strong');name.textContent=camera.name;const source=document.createElement('small');source.textContent=camera.provider;caption.append(name,source);
+   const caption=document.createElement('div');caption.className='webcam-gallery-caption';const name=document.createElement('strong');name.textContent=camera.name;const source=document.createElement('small');let stationHeight=camera.station===''?575:window.WeatherStationMapData?.stations.find(s=>s.id===camera.station)?.height;if(camera.station==='')try{const h=JSON.parse(localStorage.getItem('wetter.liveScales')||'{}').stationHeight;if(Number.isFinite(h))stationHeight=h}catch(e){}source.textContent=Number.isFinite(stationHeight)?stationHeight.toLocaleString('de-CH')+' m ü. M.':'– m ü. M.';source.title='Höhe der Wetterstation';caption.append(name,source);
    const url=previewUrl(camera);
    if(url){const image=document.createElement('img');image.alt='Webcam '+camera.name;image.loading='lazy';image.decoding='async';image.referrerPolicy='strict-origin-when-cross-origin';image.onload=()=>{if(imageRun!==run)return;loaded++;media.classList.add('is-loaded');updateStatus()};image.onerror=()=>{if(imageRun!==run)return;failed++;image.hidden=true;const note=document.createElement('span');note.textContent='Vorschau nicht verfügbar · Kamera öffnen';media.append(note);updateStatus()};image.src=url+'?v='+Math.floor(Date.now()/300000);media.append(image);}
    else if(camera.provider==='webcam.io'){
     const current=run,image=document.createElement('img');image.alt='Webcam '+camera.name;image.loading='lazy';image.decoding='async';media.append(image);
     const fail=()=>{if(current!==run)return;failed++;image.hidden=true;const note=document.createElement('span');note.textContent='Vorschau nicht verfügbar · Kamera öffnen';media.append(note);updateStatus()};image.onload=()=>{if(current===run){loaded++;updateStatus()}};image.onerror=fail;
-    const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting))return;observer.disconnect();if(current!==run)return;napfRequest=new AbortController();const request=napfRequest,timeout=setTimeout(()=>request.abort(),10000),now=Date.now(),encode=t=>encodeURIComponent(btoa(new Date(t).toISOString().slice(0,19).replace('T',' ')+' +0000')),query=new URLSearchParams({mode:'0',from:encode(now-3*3600000),to:encode(now+300000)});fetch('https://webcam.io/api/webcams/9WNDqM/images.json?'+query,{headers:{Accept:'application/json'},signal:request.signal}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{if(current!==run)return;const last=data.images?.at(-1);if(!last?.url||!/^https:\/\/assets[0-9]+\.webcam\.io\//.test(last.url))throw Error();image.src=last.url}).catch(fail).finally(()=>clearTimeout(timeout))},{root:grid,rootMargin:'200px'});observer.observe(media);
+    const observer=new IntersectionObserver(entries=>{if(!entries.some(e=>e.isIntersecting))return;observer.disconnect();if(current!==run)return;napfRequest=new AbortController();const request=napfRequest,timeout=setTimeout(()=>request.abort(),10000);getPreview(camera,{signal:request.signal}).then(url=>{if(current===run)image.src=url}).catch(fail).finally(()=>clearTimeout(timeout))},{root:grid,rootMargin:'200px'});observer.observe(media);
    }
    else{const note=document.createElement('span');note.textContent='Kamera öffnen';media.append(note);failed++;}
    tile.append(media,caption);tile.onclick=()=>webcams.show(camera);grid.append(tile);
