@@ -37,6 +37,8 @@
   add('liveDisplay.colors.'+key,'Kachelfarbe · '+label,color);
  add('liveScales.customCharts','Live-Diagrammskalen · Eigene',bool);
  add('liveScales.customGauges','Instrumentenskalen · Eigene',bool);
+ add('stationLocation.latitude','Wetterstation · Breitengrad',finite(45,49));
+ add('stationLocation.longitude','Wetterstation · Längengrad',finite(5,11));
  add('liveScales.stationHeight','Sensorhöhe',finite(-500,5000));
  for(const [key,label] of Object.entries({thermometer:'Thermometer',thermohygro:'Temperaturdiagramm',rain:'Regendiagramm',rainTank:'Regenbehälter',wind:'Winddiagramm',pressure:'Druckdiagramm',barometer:'Barometer',barometerZones:'Barometer-Druckzonen',solar:'Solardiagramm',solarMeter:'Solarsäule',lightning:'Blitzdiagramm',distance:'Blitzentfernung'}))
   add('liveScales.bounds.'+key,'Skala · '+label,v=>pair(v)&&(key==='thermometer'?v[0]<0&&v[1]>0:['thermohygro','pressure'].includes(key)||v[0]>=0));

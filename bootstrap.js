@@ -57,7 +57,7 @@
   window.addEventListener('weather-timeline-error',event=>message('Die Diagramme konnten nicht geladen werden: '+event.detail));
   document.getElementById('tabletReloadCharts').onclick=()=>location.reload();
   if(!current&&!location.hash)history.replaceState(null,'','#data');
-  const scripts=['live-card-data.js','live-archive.js','analysis.js','shell.js','view.js','fullscreen.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js','live-webcam.js','station-map-data.js','station-map-heat.js','station-map.js','live-cards.js','measurements.js'];
+  const scripts=['live-card-data.js','live-archive.js','analysis.js','shell.js','view.js','fullscreen.js','thunder.js','axis-scales.js','weather-days.js','normal-curves.js','timeline.js','annual-data.js','annual.js','comparison-data.js','comparison.js','live-weather.js','live-webcam.js','station-map-data.js','station-map-terrain.js','station-map-heat.js','station-map.js','live-cards.js','measurements.js'];
   for(const path of scripts)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=path;script.onload=resolve;script.onerror=()=>reject(Error('App-Datei fehlt: '+path));document.body.append(script)});
   const liveForm=document.getElementById('tabletLiveForm'),liveMessage=document.getElementById('tabletLiveMessage');
   document.getElementById('tabletLiveUrl').value=window.WEATHER_LIVE_URL||'';
