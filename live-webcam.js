@@ -15,7 +15,7 @@
  const note=document.createElement('p');note.className='live-webcam-source';
  const link=document.createElement('a');link.textContent='Webcam via Windy · Original öffnen';link.target='_blank';link.rel='noopener noreferrer';
  const description=document.createTextNode('');note.append(link,description);
- dialog.append(header,choices,content,note);root.append(dialog);
+ dialog.append(header,choices,content,note);document.body.append(dialog);
  function stop(){content.replaceChildren()}
  function dismiss(){if(dialog.open)dialog.close();stop()}
  function reflect(){const camera=cameras[station.value];button.hidden=!camera;if(dialog.open)dismiss()}
@@ -29,17 +29,19 @@
   if(!camera.url)for(const [key,value] of Object.entries({webcamId:camera.id,playerType:'day',loop:'0',autoPlay:'0',autoFullScreenOnOverlayPlay:'0',interactive:'1'}))url.searchParams.set(key,value);
   frame.src=url.href;content.replaceChildren(frame);if(!dialog.open)dialog.showModal();
  };
- button.onclick=()=>{
-  const value=cameras[station.value];if(!value)return;
+ function openStation(code){
+  const value=cameras[code];if(!value)return;
   const list=Array.isArray(value)?value:[value];
   stop();choices.replaceChildren();choices.hidden=list.length<2;content.hidden=true;note.hidden=true;
   if(list.length===1){showCamera(list[0]);return}
-  title.textContent='Webcam · '+station.selectedOptions[0].textContent.split(' · ')[0];
+  title.textContent='Webcam · '+([...station.options].find(o=>o.value===code)?.textContent||code).split(' · ')[0];
   for(const camera of list){
    const option=document.createElement('button');option.type='button';option.textContent=camera.name;option.dataset.camera=camera.id||camera.url;option.setAttribute('aria-pressed','false');option.onclick=()=>showCamera(camera);choices.append(option);
   }
   dialog.showModal();
  };
+ button.onclick=()=>openStation(station.value);
+ window.WeatherWebcams={has:code=>!!cameras[code],open:openStation};
  close.onclick=dismiss;dialog.addEventListener('close',stop);station.addEventListener('change',reflect);
  window.addEventListener('hashchange',()=>{if(location.hash!=='#live')dismiss()});reflect();
 })();

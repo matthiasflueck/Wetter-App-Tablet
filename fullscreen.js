@@ -1,6 +1,6 @@
 /* Installed fullscreen display mode survives separately from the Fullscreen API. */
 (()=>{
- const buttons=[document.getElementById('tabletFullscreen'),document.getElementById('liveFullscreen'),document.getElementById('archiveFullscreen')].filter(Boolean);if(!buttons.length)return;
+ const buttons=[document.getElementById('tabletFullscreen'),document.getElementById('liveFullscreen'),document.getElementById('archiveFullscreen'),document.getElementById('stationMapFullscreen')].filter(Boolean);if(!buttons.length)return;
  const exit=document.getElementById('fullscreenExit'),menu=document.getElementById('fullscreenMenuToggle'),navigation=document.getElementById('navigation');let wanted=false,menuOpen=false;
  function setNavigation(open){menuOpen=open;document.body.classList.toggle('fullscreen-nav-open',open);menu?.setAttribute('aria-expanded',String(open));menu?.setAttribute('aria-label',open?'Arbeitsbereiche schliessen':'Arbeitsbereiche öffnen')}
  if(menu&&navigation){
