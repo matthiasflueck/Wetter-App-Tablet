@@ -552,8 +552,8 @@
   const x=event.clientX-rect.left+canvas.scrollLeft,y=event.clientY-rect.top+canvas.scrollTop;
   const minLeft=canvas.scrollLeft+4,minTop=canvas.scrollTop+4;
   const right=canvas.scrollLeft+canvas.clientWidth-6,bottom=canvas.scrollTop+canvas.clientHeight-6;
-  let left=x+offset,top=y+offset;
-  if(left+tip.offsetWidth>right)left=x-tip.offsetWidth-offset;
+  let left=x-tip.offsetWidth-offset,top=y+offset;
+  if(left<minLeft)left=x+offset;
   if(top+tip.offsetHeight>bottom)top=y-tip.offsetHeight-offset;
   tip.style.left=Math.max(minLeft,Math.min(left,Math.max(minLeft,right-tip.offsetWidth)))+'px';
   tip.style.top=Math.max(minTop,Math.min(top,Math.max(minTop,bottom-tip.offsetHeight)))+'px';
