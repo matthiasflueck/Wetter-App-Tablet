@@ -539,22 +539,18 @@
    const point=spec.data.points.reduce((a,b)=>Math.abs(a.time-target)<Math.abs(b.time-target)?a:b);
    const tolerance=shownWindow.period?0:Math.max(spec.data.bucket_seconds||600,900);
    if(target<point.first-tolerance||target>point.last+tolerance)continue;
-   const row=document.createElement('div');row.style.borderLeftColor=color(spec);row.style.color=color(spec);
-   const label=document.createElement('span');label.className='archive-tip-label';label.textContent=spec.label;
+   const row=document.createElement('div');row.className='archive-tip-reading';row.style.color=color(spec);
    const value=document.createElement('b');value.className='archive-tip-value';
-   value.textContent=(spec.axis==='direction'?Layout.compass(point.value)+' · ':'')+format(point.value);
-   const unit=document.createElement('small');unit.textContent=spec.unit||'';
-   row.append(label,value,unit);
-   if(shownWindow.period&&spec.key==='temperature_c'||point.incomplete){
-    const detail=document.createElement('small');detail.className='archive-tip-detail';
-    detail.textContent=(shownWindow.period&&spec.key==='temperature_c'?'Min '+format(point.minimum??point.value)+' / Max '+format(point.maximum??point.value):'')+(point.incomplete?' · unvollständig':'');row.append(detail);
-   }
+   value.textContent=spec.axis==='direction'?Layout.compass(point.value):format(point.value)+(spec.unit?' '+spec.unit:'');
+   row.setAttribute('aria-label',spec.label+': '+value.textContent+(point.incomplete?' · unvollständig':''));row.append(value);
    tip.append(row);
   }
   const storm=plot.storms.find(point=>target>=point.first&&target<=point.last);
-  if(storm){const row=document.createElement('div');row.className='archive-tip-storm';row.textContent='⚡ '+dateLabel(storm.time,{day:'2-digit',month:'2-digit'})+' · '+format(storm.value,0)+' Blitze'+(Number.isFinite(storm.nearest)?' · '+format(storm.nearest)+' km':'');tip.append(row)}
-  tip.hidden=false;tip.style.left=Math.max(4,Math.min(position.x+12,plot.width-tip.offsetWidth-6))+'px';
-  tip.style.top=Math.max(4,Math.min(canvas.scrollTop+12,plot.bottom-tip.offsetHeight))+'px';
+  if(storm){const row=document.createElement('div');row.className='archive-tip-storm';row.style.color='#ff8c00';row.textContent='⚡ '+format(storm.value,0)+' Blitze'+(Number.isFinite(storm.nearest)?' · '+format(storm.nearest)+' km':'');tip.append(row)}
+  tip.hidden=false;
+  const left=position.x<(plot.left+plot.right)/2?plot.right-tip.offsetWidth-8:plot.left+8;
+  tip.style.left=Math.max(4,Math.min(left,plot.width-tip.offsetWidth-6))+'px';
+  tip.style.top=Math.max(4,Math.min(canvas.scrollTop+8,plot.bottom-tip.offsetHeight))+'px';
  }
  function showWindow(window,autoResolution=false){
   config.range='custom';config.start=localInput(window.start);config.end=localInput(window.end);
