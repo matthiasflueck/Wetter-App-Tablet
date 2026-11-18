@@ -792,3 +792,10 @@ header .header-tools .zoom-control input{width:90px}
 header .header-tools .zoom-control output{font-size:11px;min-width:34px}
 header .header-tools button{font-size:11px;padding:4px 8px;min-height:28px}
 @media(pointer:coarse){header .header-tools button{min-height:34px}}
+
+/* One fullscreen toggle in the same top-right corner in every workspace. */
+#tabletFullscreen,#liveFullscreen,#archiveFullscreen,#stationMapFullscreen{display:none!important}
+body #fullscreenExit,body.focus-mode.live-history-active #fullscreenExit{display:inline-flex;align-items:center;justify-content:center;position:fixed;right:10px;top:8px;width:36px;height:36px;min-width:36px;min-height:36px;padding:6px;border-radius:9px;z-index:310;font-size:0;box-shadow:none;background:var(--panel)}
+#fullscreenExit svg{width:22px;height:22px;flex-shrink:0}
+body>header{padding-right:62px}
+body.focus-mode #liveArchiveDialog .archive-toolbar{padding-right:48px}
