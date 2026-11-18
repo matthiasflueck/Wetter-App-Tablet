@@ -780,3 +780,15 @@ select[data-searchable=true]{display:none!important}.station-picker-button{displ
 #liveArchiveDialog #archiveTooltip>strong{flex-basis:auto;font-size:10px;font-weight:500;color:var(--muted);margin:0 0 2px;padding:0;border:0}
 #liveArchiveDialog #archiveTooltip>div,#liveArchiveDialog #archiveTooltip>div.archive-tip-storm{display:block;margin:0;padding:0;border:0;font-size:11px;white-space:nowrap}
 #liveArchiveDialog #archiveTooltip .archive-tip-value{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;text-align:left}
+
+/* Reserve the fullscreen menu heading for its hamburger button. */
+body.focus-mode.fullscreen-nav-open #navigation{inset:8px auto 12px 8px;height:auto;max-height:calc(100dvh - 20px);padding:52px 14px 14px;box-sizing:border-box}
+header .header-tools[hidden]{display:none!important}
+header .header-tools{gap:6px}
+header .header-tools .menu-group{gap:6px;padding:2px 7px 5px;border-radius:8px}
+header .header-tools .menu-group legend{font-size:9px}
+header .header-tools .zoom-control{gap:6px;font-size:11px}
+header .header-tools .zoom-control input{width:90px}
+header .header-tools .zoom-control output{font-size:11px;min-width:34px}
+header .header-tools button{font-size:11px;padding:4px 8px;min-height:28px}
+@media(pointer:coarse){header .header-tools button{min-height:34px}}

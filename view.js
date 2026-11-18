@@ -3,6 +3,8 @@
   try{const preferences=JSON.parse(localStorage.getItem('wetter.preferences')||'{}');document.body.classList.toggle('legend-right',preferences.legendPosition==='right')}catch(e){}
   const slider=document.getElementById('diagramZoom');
   const output=document.getElementById('diagramZoomValue');
+  const diagramTools=document.querySelector('header .header-tools');
+  const diagramWorkspaces=new Set(['live','timeline','annual','comparison']);
   const stages=[...document.querySelectorAll('.diagram-stage')];
   const workspaces=['live','live-history','station-map','timeline','annual','comparison','analysis','measurements','data','settings'];
   let zooms={},percent=100;
@@ -38,6 +40,7 @@
   let pending=false;
   function scheduleResize(){if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;resizeStages()})}
   function apply(){
+    if(diagramTools)diagramTools.hidden=!diagramWorkspaces.has(workspace());
     slider.value=percent;output.value=percent+' %';slider.setAttribute('aria-valuetext',percent+' Prozent');
     document.documentElement.style.setProperty('--diagram-zoom',percent/100);
     resizeStages();scheduleResize();
