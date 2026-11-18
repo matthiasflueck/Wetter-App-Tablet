@@ -548,9 +548,15 @@
   const storm=plot.storms.find(point=>target>=point.first&&target<=point.last);
   if(storm){const row=document.createElement('div');row.className='archive-tip-storm';row.style.color='#ff8c00';row.textContent='⚡ '+format(storm.value,0)+' Blitze'+(Number.isFinite(storm.nearest)?' · '+format(storm.nearest)+' km':'');tip.append(row)}
   tip.hidden=false;
-  const left=position.x<(plot.left+plot.right)/2?plot.right-tip.offsetWidth-8:plot.left+8;
-  tip.style.left=Math.max(4,Math.min(left,plot.width-tip.offsetWidth-6))+'px';
-  tip.style.top=Math.max(4,Math.min(canvas.scrollTop+8,plot.bottom-tip.offsetHeight))+'px';
+  const rect=canvas.getBoundingClientRect(),offset=event.pointerType==='touch'?22:12;
+  const x=event.clientX-rect.left+canvas.scrollLeft,y=event.clientY-rect.top+canvas.scrollTop;
+  const minLeft=canvas.scrollLeft+4,minTop=canvas.scrollTop+4;
+  const right=canvas.scrollLeft+canvas.clientWidth-6,bottom=canvas.scrollTop+canvas.clientHeight-6;
+  let left=x+offset,top=y+offset;
+  if(left+tip.offsetWidth>right)left=x-tip.offsetWidth-offset;
+  if(top+tip.offsetHeight>bottom)top=y-tip.offsetHeight-offset;
+  tip.style.left=Math.max(minLeft,Math.min(left,Math.max(minLeft,right-tip.offsetWidth)))+'px';
+  tip.style.top=Math.max(minTop,Math.min(top,Math.max(minTop,bottom-tip.offsetHeight)))+'px';
  }
  function showWindow(window,autoResolution=false){
   config.range='custom';config.start=localInput(window.start);config.end=localInput(window.end);
